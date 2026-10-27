@@ -1,0 +1,11 @@
+/Binaries/
+/Intermediate/
+/Saved/
+/DerivedDataCache/
+/.vs/
+/.idea/
+/_LocalReferences/
+*.sln
+*.slnx
+*.suo
+*.VC.db
