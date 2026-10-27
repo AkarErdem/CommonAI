@@ -28,11 +28,11 @@ A new Codex run can rebuild automatically discovered guidance. During the bootst
 
 ## Manual and local references
 
-The exact plugin-relative manual path is `Docs/AthenaAI_Manual/Athena_AI_Manual.md`. Its adjacent media directory is part of the local reference. Keep it intact and read it directly even when ignored by Git.
+The exact plugin-relative manual path is `Docs/AthenaAI_Manual/Athena_AI_Manual.md`. Its adjacent media directory is part of the reference. Keep it intact and read it directly.
 
 The manual is the primary behavioral/authoring reference. Installed source is evidence of exact C++ feasibility. Report meaningful disagreement instead of silently selecting a new behavior. A filename without a version number does not establish the installed version; inspect the descriptor/source and the manual's own metadata where available.
 
-The entire `Docs/AthenaAI_Manual/` folder is ignored and omitted from shared releases. Every authorized fresh checkout provisions its own local copy at the same path. Check with both `git check-ignore` and `git ls-files`: already tracked files remain tracked. The start task may remove this exact reference directory from the Git index while preserving every local file. Never delete the working manual or rewrite old history. Report previously committed reference material privately; do not claim that a new ignore rule erases prior exposure.
+The entire `Docs/AthenaAI_Manual/` folder may be tracked in an authorized CommonAI repository. A checkout may contain it, or an authorized workspace may provision it at the same path. Do not add an ignore rule or remove the directory from source control during setup. Preserve the working manual and media. Before sharing or releasing the repository, verify the applicable terms and recipients; tracking alone does not authorize distribution. Never rewrite old history as an implicit cleanup step.
 
 ## Source-control ownership and privacy
 

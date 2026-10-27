@@ -5,7 +5,7 @@ A reusable C++ NPC behavior plugin above AthenaAI. Prefer shared NPC mechanisms 
 ## Start here
 
 1. Merge this package into the existing `Plugins/CommonAI` folder. The ZIP contains files directly at its root; do not add a wrapper folder. Its AGENTS.md belongs to CommonAI, never to the game root. Preserve local instruction additions, ignore patterns, implementation code and existing progress when merging.
-2. Keep the local manual at `Docs/AthenaAI_Manual/Athena_AI_Manual.md`, with `media/` beside it. This locally provisioned reference directory is deliberately ignored by Git and excluded from this package.
+2. Keep the manual at `Docs/AthenaAI_Manual/Athena_AI_Manual.md`, with `media/` beside it. The directory may be tracked in an authorized repository; confirm sharing rights before distributing it.
 3. Open the authorized host project in Codex and ask it to execute `Plugins/CommonAI/Prompts/00_START_HERE.txt`.
 
 The start task preserves existing host instructions, installs only the small managed host bridge, audits the installed vendor API, then implements the bounded first slice when the relevant decisions are clear. It asks before ambiguous layer placement or a material unresolved behavior decision. It does not publish or commit.
@@ -32,14 +32,14 @@ The start task preserves existing host instructions, installs only the small man
 
 - An authorized Unreal C++ host and its applicable instructions.
 - The installed AthenaAI plugin, including source needed to verify native extension hooks.
-- The local manual at the exact path above. Provision it separately in each new authorized checkout; the public repository does not distribute it.
+- The manual at the exact path above. It may come from an authorized checkout or be provisioned separately; do not assume that a public release includes it.
 - The actual engine/toolchain and required vendor dependencies.
 
 The runtime module name is **CommonAI**, matching `Source/CommonAI/CommonAI.Build.cs`. Do not rename it based on older architecture drafts. The host can be an existing game; a separate neutral host is a portability check before release, not an initial setup requirement.
 
 ## What this package contains
 
-This is a workflow/documentation update, not a replacement of the user's implementation. It does not contain the vendor manual, vendor code, host instructions, host assets, build outputs or a Git history. Existing CommonAI.uplugin, Source, Content and Resources are managed in the local project. Verify their actual state; this package does not establish that a build or runtime test has passed.
+This is a workflow/documentation update, not a replacement of the user's implementation. The setup package does not itself supply the vendor manual, vendor code, host instructions, host assets, build outputs or a Git history. Existing CommonAI.uplugin, Source, Content and Resources are managed in the local project. Verify their actual state; this package does not establish that a build or runtime test has passed.
 
 Keep the common repository separately versioned. Preserve the already chosen submodule or independent-checkout arrangement. Configure ownership in the host's actual source-control system; the plugin's .gitignore does not configure the host. Store Unreal binary assets through Git LFS using the supplied .gitattributes and an installed LFS client.
 

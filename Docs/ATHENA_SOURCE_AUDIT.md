@@ -8,7 +8,7 @@ This document is an audit specification, not a claim that the installed plugin h
 
 Installed source and build results establish exact native APIs, exports and actual executable behavior. If the manual and source materially disagree, record both pieces of evidence and ask before implementing a conflicting behavior; do not silently dismiss the manual. Record actual Unreal/plugin versions and module names independently of the versionless manual filename. The established CommonAI runtime module name is `CommonAI`.
 
-Do not copy vendor implementation bodies, proprietary assets, screenshots or manual contents into tracked CommonAI files or distribution bundles. The canonical manual directory is permitted as ignored local reference material and must remain intact. Keep the vendor source separately installed. Record concise findings with manual sections and vendor-relative paths/symbols instead of raw host paths.
+Do not copy vendor implementation bodies, proprietary assets, screenshots or manual contents into other CommonAI files or distribution bundles. The canonical manual directory may be tracked in an authorized repository and must remain intact. Keep the vendor source separately installed. Record concise findings with manual sections and vendor-relative paths/symbols instead of raw host paths.
 
 ## Manual-confirmed facts that affect the design
 

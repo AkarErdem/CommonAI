@@ -4,7 +4,7 @@ Reviewed: 2026-10-27. These sources support engine and distribution facts. The a
 
 ## Local primary reference
 
-The canonical AthenaAI behavioral source of truth is `Docs/AthenaAI_Manual/Athena_AI_Manual.md`, relative to CommonAI, with its adjacent `media/` directory. Read it explicitly for vendor-related work; it is ignored local reference material and is not distributed in this pack. Section references marked **M** in ATHENA_SOURCE_AUDIT.md refer to this manual.
+The canonical AthenaAI behavioral source of truth is `Docs/AthenaAI_Manual/Athena_AI_Manual.md`, relative to CommonAI, with its adjacent `media/` directory. Read it explicitly for vendor-related work. The directory may be tracked in an authorized repository; distribution requires a separate rights review. Section references marked **M** in ATHENA_SOURCE_AUDIT.md refer to this manual.
 
 Installed AthenaAI source establishes exact native symbols, exports, creation hooks and executable behavior. Record actual versions separately from the versionless manual filename. Material disagreement between the manual and source must be reported and resolved before implementing conflicting behavior; neither an old summary nor generic engine documentation silently replaces the manual.
 

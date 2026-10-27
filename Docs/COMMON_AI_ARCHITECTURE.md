@@ -18,7 +18,7 @@ The canonical Athena behavioral reference is `Docs/AthenaAI_Manual/Athena_AI_Man
 
 Dependencies point from consumers into CommonAI and from CommonAI into AthenaAI. CommonAI must not include a consumer module, cast to a consumer Pawn, load a consumer asset or select behavior through a consumer name.
 
-The third layer need not subclass every shared class. It can implement interfaces, provide data and compose components. Native inheritance establishes the vendor extension seam; composition keeps actual game behavior replaceable.
+The third layer need not subclass every shared class. It can implement interfaces, provide data and compose components. Keep these consumer bindings thin: reusable observation, selection policy, activity progression and lifecycle remain in CommonAI, while the consumer supplies authoritative facts and concrete effects. Native inheritance establishes the vendor extension seam; composition keeps actual game behavior replaceable.
 
 ## 2. Start with one plugin and one Runtime module
 

@@ -10,7 +10,7 @@ CommonAI can be a nested Git repository at `Plugins/CommonAI`. Automatic instruc
 
 ## Primary reference: the local manual
 
-The canonical behavioral source of truth for AthenaAI is `Docs/AthenaAI_Manual/Athena_AI_Manual.md`, relative to this plugin. Keep its `media/` directory beside it. Read the relevant manual sections for every Athena-related design, implementation or review. Read the file explicitly even though Git ignores it; absence from an ordinary rg file listing is not evidence that it is missing.
+The canonical behavioral source of truth for AthenaAI is `Docs/AthenaAI_Manual/Athena_AI_Manual.md`, relative to this plugin. Keep its `media/` directory beside it. Read the relevant manual sections for every Athena-related design, implementation or review. Read the file directly; do not infer its presence or absence from a search listing alone.
 
 The manual governs intended vendor behavior and authoring conventions. Installed vendor source establishes exact C++ names, exports, signatures, construction hooks and executable behavior. Verify both before implementing an extension. When they materially disagree, record the discrepancy and ask before choosing a conflicting behavior; do not silently override the manual, invent an API, or edit the manual to fit a workaround. Missing evidence blocks only the affected work. Shared audit summaries cite the manual's relative path and section, and vendor-relative source paths/symbols; never copy the manual or vendor implementation bodies into tracked shared files.
 
@@ -24,7 +24,9 @@ CommonAI must not depend on any consumer module, concrete consumer class, /Game 
 
 ## Prefer shared mechanisms; preserve user choice
 
-Put reusable NPC mechanisms in CommonAI by default, even when first requested by one consumer. This includes routines, scheduling, needs logic, activity sequences, reusable role behavior, reservations, interruption, cleanup and neutral presets/curves. Put concrete world bindings, game rules, presentation and game-owned content in the consumer. Split mixed features into a reusable mechanism plus narrow consumer adapters/data; do not move the whole feature to the game just because it uses a game service.
+For new NPC behavior, put all reusable decision and execution logic in CommonAI by default, even when first requested by one consumer. This includes observation processing, eligibility, utility inputs, routines, scheduling, needs logic, role behavior, activity sequences, retries, reservations, interruption, cleanup and neutral presets/curves. Keep the consuming game as thin as the real integration allows: it supplies authoritative state, concrete world operations, game-specific rules/effects, presentation and content. An adapter must not quietly become a second behavior implementation.
+
+When shared logic needs a game system, add or reuse the smallest typed CommonAI capability contract required by the concrete behavior. Implement that contract in the game by delegating to its existing authority; keep shared selection policy, sequencing and lifecycle in CommonAI while AthenaAI performs its verified utility scoring. Do not prebuild broad interfaces for hypothetical features or move an existing production pipeline merely to reduce the game's line count. A host implementation that starts owning general NPC mechanics is a placement exception to explain and record, not the default.
 
 Before implementation, briefly state the proposed placement and reason. When placement or a new public contract is materially ambiguous, ask one focused question with a recommendation and tradeoff before implementing that disputed part. Do not silently choose a layer, create both versions, or add an unnecessary generic framework. Continue independent clear work. Record accepted reusable decisions in `Docs/DECISIONS.md`; keep concrete consumer decisions and identifiers only in the host. The detailed decision procedure and examples are in `Docs/LAYER_PLACEMENT_POLICY.md`.
 
@@ -32,7 +34,7 @@ Before implementation, briefly state the proposed placement and reason. When pla
 
 Use only CommonAI, the explicitly authorized current host and its installed dependency. Do not retrieve unrelated workspaces, project histories or account context. Keep shared names, comments, examples, asset metadata, documents, commit messages and reports neutral. Never put private consumer names in a shared denylist. Raw host logs, screenshots, absolute paths and private integration notes remain outside CommonAI. Instruction files are guidance, not an access-control sandbox.
 
-The local manual and media may stay under `Docs/AthenaAI_Manual/`; that entire directory is untracked local reference material. Do not delete it, commit it or include it in a release. Keep vendor source/assets/binaries separately installed. Check the Git index as well as ignore rules; ignoring a path does not remove already tracked content or old history. Never rewrite history or publish as an implicit cleanup step.
+Keep the manual and its media together under `Docs/AthenaAI_Manual/`. This directory may be tracked in the authorized CommonAI repository; do not add an ignore rule or remove it from source control merely because it is vendor reference material. Do not delete it. Keep vendor source/assets/binaries separately installed. Tracking the manual does not authorize a commit, release or public distribution; verify applicable sharing rights and release contents before either. Never rewrite history or publish as an implicit cleanup step.
 
 ## Implementation and verification
 

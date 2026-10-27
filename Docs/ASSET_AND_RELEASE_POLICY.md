@@ -10,11 +10,11 @@ The plugin descriptor enables content through `CanContainContent` and declares A
 
 Distribute original CommonAI source, approved original assets, configuration, documentation, and release metadata. Each consuming environment obtains AthenaAI separately under its applicable license. Do not bundle vendor source, binaries, manuals, sample content, or extracted demo assets. The dependency declaration is sufficient to express the technical prerequisite; it is not redistribution permission. Verify the actual purchase terms when provisioning collaborators and build environments. [S13](SOURCES.md#s13)
 
-### Local vendor reference directory
+### Manual reference directory
 
-Keep `Docs/AthenaAI_Manual/Athena_AI_Manual.md` and its adjacent `media/` locally. This exact path is the primary behavioral reference for agent work, but the entire `Docs/AthenaAI_Manual/` directory is ignored by Git and excluded from shared archives. Fresh authorized workspaces provision it separately. Do not delete it or rename it to add a version suffix.
+Keep `Docs/AthenaAI_Manual/Athena_AI_Manual.md` and its adjacent `media/` together. This exact path is the primary behavioral reference for agent work. The directory may be tracked in the authorized CommonAI repository. A checkout may supply it, or an authorized workspace may provision it separately. Do not delete it or rename it to add a version suffix. Exclude it from release archives. Any proposal to include it in a release requires a separate owner decision and review of the applicable terms and recipients.
 
-Check both ignore rules and the Git index. An ignore rule does not remove tracked material or earlier history. The authorized bootstrap can remove this directory from the index while preserving local files; it cannot rewrite history or publish as an automatic cleanup. Keep consumer-specific data and diagnostics outside CommonAI, including any identifying scan terms.
+Check ignore rules and source-control state before changing this directory's tracking. No bootstrap task should add an ignore rule or remove the directory from source control. Tracking does not authorize a commit or publication. Keep consumer-specific data and diagnostics outside CommonAI, including any identifying scan terms.
 
 ## 2. Asset ownership and references
 

@@ -4,14 +4,24 @@
 
 Prefer sharing useful behavior, not maximizing the number of abstract classes. A second live implementation is not required before a clearly reusable mechanic can belong in CommonAI. Do not require access to another consumer to justify neutral reuse.
 
-CommonAI owns shared mechanisms, contracts and neutral data. The consuming game owns its concrete world connections, authored content and application rules. AthenaAI remains the unmodified vendor implementation.
+CommonAI owns shared mechanisms, contracts and neutral data. The consuming game owns its concrete world connections, authored content and application rules. AthenaAI remains the unmodified vendor implementation. Aim for the smallest consumer adapter that can read its authoritative state and perform its concrete effect; agent behavior belongs in CommonAI even if one game is its first user.
+
+## Default implementation boundary
+
+For a new NPC behavior, CommonAI owns the reusable path from observation to outcome: eligibility, utility inputs, selection support, state transitions, sequencing, timing, retries, interruption, cancellation, resource ownership and neutral results. It also owns reusable role/need/routine data and neutral examples. Reuse AthenaAI's verified scoring and lifecycle instead of duplicating them.
+
+The game owns only the facts and operations that are inherently its own: access to its clock, inventory, combat or persistence authority; concrete actors and assets; world-specific movement or interaction calls; rewards, damage, quests and presentation; and values that encode game policy. Keep these bindings small and delegate behavior decisions back to CommonAI. A component or interface implementation in the game is not a reason to copy the shared sequence into it.
+
+When an existing CommonAI contract cannot express a concrete need, add the narrowest typed input/output or capability contract in CommonAI and implement the game side through the existing system. Add a contract when a behavior actually needs it, with explicit failure/cancellation semantics and ownership. Do not add a generic service layer, parallel planner or broad future-proof interface solely to make the game layer look smaller.
+
+Before finishing a behavior change, inspect the game diff: if it contains general selection, routine progression, retry, cooldown, reservation or cleanup logic, move that logic into CommonAI unless a specific game rule requires it there. Record a justified exception and its coupling cost. The number of files or lines is not the goal; one authoritative owner and reusable behavior are.
 
 ## Decision procedure before coding
 
 1. Describe the requested behavior without application-specific names. Separate mechanism, configuration and world effects.
 2. Check whether an existing shared task, contract, provider or profile can express it. Extend that mechanism where the extension is useful and remains neutral.
 3. If differences are values, schedules, needs, role preferences or capabilities, keep the mechanism shared and provide data. Neutral reusable defaults may be shared; tuned game presets stay in the consumer when they contain game policy or references.
-4. If the mechanism needs a game-owned service, define or reuse a small CommonAI contract. Implement the concrete clock, inventory, interaction, combat or presentation binding in the game. Calling a game service is a reason for an adapter, not a reason to move the whole mechanism out of CommonAI.
+4. If the mechanism needs a game-owned service, define or reuse a small CommonAI contract for the exact fact or operation. Implement the concrete clock, inventory, interaction, combat or presentation binding in the game. Calling a game service is a reason for an adapter, not a reason to move the whole mechanism out of CommonAI.
 5. Keep concrete game rules and content in the game. Generic interfaces must not expose game classes, modules, enums, asset paths or disguised consumer selectors.
 6. If two placements remain materially reasonable, or sharing would require guessing a broad public API, ask the user before implementing that portion. Present a recommendation and the consequence for reuse versus coupling. Continue unrelated clear work.
 

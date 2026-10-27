@@ -3,7 +3,9 @@
 
 For NPC/AI planning, design, implementation or review anywhere in this project, explicitly read `Plugins/CommonAI/AGENTS.md` and `Plugins/CommonAI/Docs/LAYER_PLACEMENT_POLICY.md` before choosing the layer. Do not assume child instructions were automatically loaded. For setup or cross-repository work, also read `Plugins/CommonAI/Docs/HOST_INTEGRATION.md`.
 
-Prefer reusable NPC mechanisms and neutral assets in CommonAI. Keep concrete game rules, world bindings and game content here. Split mixed features using CommonAI-owned contracts. State the intended placement before coding; ask the user before a materially ambiguous placement or public-API choice.
+For new NPC behavior, put reusable selection inputs and policy, routines, needs, sequencing, timing, retries, reservations, cancellation and cleanup in CommonAI by default, even for the first consumer; AthenaAI keeps its utility scorer. Keep this project's code to thin bindings for authoritative state, concrete world operations, game-specific rules/effects, presentation and content. If a game adapter begins owning general NPC behavior, move that mechanism into CommonAI.
+
+When shared behavior needs a game system, add or reuse the smallest typed CommonAI contract required by the concrete behavior and implement it here through the existing authority. Do not add speculative public interfaces or replace the production pipeline just to minimize game code. State the intended placement before coding; ask before a materially ambiguous placement or public-API choice, and record any justified exception.
 
 Maintain `Game -> CommonAI -> AthenaAI` ownership/dependency direction. Do not modify the vendor or introduce CommonAI references back to this project. Keep existing controller and execution authority. Public vendor inheritance can expose transitive Athena types.
 

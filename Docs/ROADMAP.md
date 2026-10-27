@@ -14,10 +14,10 @@ No calendar estimate is assigned because installed API coverage, existing host s
 
 - Preserve the established CommonAI plugin/runtime module name and check the existing implementation rather than regenerating it.
 - Read host/plugin instructions and safely install the managed host bridge using HOST_INTEGRATION.md.
-- Verify `Docs/AthenaAI_Manual/Athena_AI_Manual.md` and media remain available locally and excluded from tracked shared distribution.
+- Verify `Docs/AthenaAI_Manual/Athena_AI_Manual.md` and media remain available and trackable in the authorized repository; review sharing rights before distribution.
 - Identify an authorized C++ host project; an existing application can be the initial development host.
 - Keep the shared plugin repository independently versioned.
-- Make the installed vendor source/manual available locally without distributing them.
+- Make the installed vendor source and manual available for development; keep vendor source separate and review the manual's sharing rights before distribution.
 - Record actual Unreal, AthenaAI, compiler/platform and source-control versions.
 - Record the current authorized host's existing dependency/versioning strategy. Defer other consumers and any source-control conversion to their own authorized integration task.
 - Apply generic confidentiality rules without placing consumer names in a shared blocklist.

@@ -2,7 +2,7 @@
 
 ## Reference and installed versions
 
-- Behavioral reference: `Docs/AthenaAI_Manual/Athena_AI_Manual.md`, local version 2.6, especially §§2, 3, 5, 6.1–6.9 and 7. Its adjacent media remains local.
+- Behavioral reference: `Docs/AthenaAI_Manual/Athena_AI_Manual.md`, local version 2.6, especially §§2, 3, 5, 6.1–6.9 and 7. Its media remains adjacent to the manual.
 - Installed runtime: AthenaAI descriptor version 2.6 for Unreal 5.8; one Runtime module, `AthenaAI`. The current CommonAI descriptor and Build.cs both name the `CommonAI` Runtime module and depend downward on `AthenaAI`. The local Editor compile used Win64 and Visual Studio toolchain 14.44.35219.
 - Native API evidence below is from the installed `Plugins/AthenaAI/Source/AthenaAI` tree. It establishes declarations and implementation behavior, not an independent-host portability result.
 
