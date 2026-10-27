@@ -6,7 +6,7 @@ The host is the explicitly authorized current Unreal project. CommonAI normally 
 
 ## Install or refresh the bridge
 
-The combined start prompt authorizes the following local instruction edits:
+For an explicitly authorized host instruction setup, use this workflow. This document does not itself authorize an edit:
 
 1. Read the current host AGENTS.md, any applicable AGENTS.override.md, configured instruction fallback files and relevant nested guidance. Read CommonAI/AGENTS.md explicitly. Preserve current user changes, encoding and newline conventions. Do not modify global agent settings.
 2. Read `Docs/HOST_AGENTS_BRIDGE.md`. It contains only the managed block bounded by `<!-- COMMONAI:HOST-BRIDGE:BEGIN -->` and `<!-- COMMONAI:HOST-BRIDGE:END -->`.
@@ -32,7 +32,7 @@ The exact plugin-relative manual path is `Docs/AthenaAI_Manual/Athena_AI_Manual.
 
 The manual is the primary behavioral/authoring reference. Installed source is evidence of exact C++ feasibility. Report meaningful disagreement instead of silently selecting a new behavior. A filename without a version number does not establish the installed version; inspect the descriptor/source and the manual's own metadata where available.
 
-The entire `Docs/AthenaAI_Manual/` folder may be tracked in an authorized CommonAI repository. A checkout may contain it, or an authorized workspace may provision it at the same path. Do not add an ignore rule or remove the directory from source control during setup. Preserve the working manual and media. Before sharing or releasing the repository, verify the applicable terms and recipients; tracking alone does not authorize distribution. Never rewrite old history as an implicit cleanup step.
+The manual and media may already be tracked or may be provisioned locally. Preserve the working files and check both `git check-ignore` and `git ls-files`; an ignore rule does not untrack indexed files. Host bridge setup does not authorize changing the manual's ignore or index state. Ask the owner for a specific tracking decision before adding, ignoring or removing only this directory from the index. A tracking decision does not authorize a commit, share or release; review rights and recipients separately. Never rewrite old history as an implicit cleanup step.
 
 ## Source-control ownership and privacy
 
@@ -42,6 +42,6 @@ Keep raw host build logs and private integration notes in the host, outside Comm
 
 ## Verification before completion
 
-Confirm the effective host bridge, the plugin rules, manual location, runtime module name `CommonAI`, and downward plugin/module dependencies. Explain the feature placement before coding. Validate the first slice in the current authorized host without replacing its production AI/controller pipeline. Validate a separate minimal host before release.
+Confirm the effective host bridge, the plugin rules, manual location, runtime module name `CommonAI`, and downward plugin/module dependencies. Explain the feature placement before coding. Validate the shared behavior selected for integration in the authorized host without replacing its production AI/controller pipeline. Validate a separate minimal host before release.
 
 Keep host-specific integration evidence in the host. Update CommonAI's neutral `Docs/STATUS.md`, `Docs/DECISIONS.md` and source-audit results as appropriate. Do not reset existing records when installing an updated instruction pack.

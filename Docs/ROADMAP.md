@@ -2,11 +2,9 @@
 
 ## How to use this plan
 
-Advance by evidence, not by the number of classes created. Keep confirmed source facts, proposed framework decisions and unresolved questions separate. `Prompts/00_START_HERE.txt` authorizes M0 through the bounded first slice in M3: bootstrap, source investigation, then implementation when the necessary evidence and placement decisions are clear. Do not stop for another routine approval between those stages. The standalone audit prompt remains read-only.
+Advance by evidence, not by the number of classes created. Keep confirmed source facts, proposed framework decisions and unresolved questions separate. The local first-slice implementation is recorded in `STATUS.md`; unverified runtime and asset gates remain open. This roadmap is not standing authorization for further implementation, source-control changes or release. The audit prompt remains read-only.
 
-For every feature, apply `LAYER_PLACEMENT_POLICY.md`: prefer reusable mechanisms in CommonAI, use narrow consumer bindings, and ask before materially ambiguous placement or public-API choices. Later milestones are not automatically authorized by the start task.
-
-No calendar estimate is assigned because installed API coverage, existing host setup and asset tooling are not yet inspected.
+For every feature, apply `LAYER_PLACEMENT_POLICY.md`: prefer reusable mechanisms in CommonAI, use narrow consumer bindings, and ask before materially ambiguous placement or public-API choices. Each later milestone needs its own requested scope.
 
 ## M0 — Establish a clean development boundary
 
@@ -14,7 +12,7 @@ No calendar estimate is assigned because installed API coverage, existing host s
 
 - Preserve the established CommonAI plugin/runtime module name and check the existing implementation rather than regenerating it.
 - Read host/plugin instructions and safely install the managed host bridge using HOST_INTEGRATION.md.
-- Verify `Docs/AthenaAI_Manual/Athena_AI_Manual.md` and media remain available and trackable in the authorized repository; review sharing rights before distribution.
+- Verify `Docs/AthenaAI_Manual/Athena_AI_Manual.md` and media remain available. Treat tracking, committing and distribution as separate owner decisions.
 - Identify an authorized C++ host project; an existing application can be the initial development host.
 - Keep the shared plugin repository independently versioned.
 - Make the installed vendor source and manual available for development; keep vendor source separate and review the manual's sharing rights before distribution.

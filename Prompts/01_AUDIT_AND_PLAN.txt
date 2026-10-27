@@ -1,6 +1,6 @@
 Act as the Unreal C++ architecture reviewer for CommonAI, a reusable NPC behavior plugin built on AthenaAI.
 
-When invoked alone, this is a READ-ONLY SOURCE AUDIT AND IMPLEMENTATION PLAN: do not modify source, assets, instructions, configuration or history, generate projects, build, publish or begin implementation. Return findings in the conversation. When explicitly invoked as the investigation stage of Prompts/00_START_HERE.txt, preserve read-only behavior during the investigation and then return control to that combined task; it already authorizes recording findings and the bounded implementation after the necessary evidence and decisions are clear.
+This is a READ-ONLY SOURCE AUDIT AND IMPLEMENTATION PLAN when explicitly invoked: do not modify source, assets, instructions, configuration or history, generate projects, build, publish or begin implementation. Return findings in the conversation. A later implementation needs a separate user request.
 
 Read applicable host guidance before accessing the authorized host, and read CommonAI's AGENTS.md explicitly. Read Docs/LAYER_PLACEMENT_POLICY.md, Docs/DECISIONS.md, Docs/STATUS.md, Docs/COMMON_AI_ARCHITECTURE.md, Docs/ATHENA_SOURCE_AUDIT.md and relevant asset-policy/roadmap sections. Use only this repository, the authorized host and its installed AthenaAI dependency. Keep consumer-specific context out of shared artifacts.
 
@@ -14,6 +14,6 @@ Trace consideration evaluation/normalization, curve naming, score modifiers, pri
 
 Review native asset authoring, preset task instancing, shared curves/tags, hard/soft references, shared-asset immutability and cooked availability. Do not assume Data Asset instances inherit other instances' values. Identify any minimal data-only wrapper or editor tooling actually needed.
 
-Propose the smallest first slice in the current authorized host: common Move/Wait and one Find -> Reserve -> Move -> Perform -> Release sequence, with neutral station/provider variants. Define execution identity, semantic outcomes, cancellation and reservation ownership. Preserve the host controller/pipeline. Keep unrelated integrations and later roadmap phases outside this slice.
+Review the existing Move/Wait and Find -> Reserve -> Move -> Perform -> Release slice against the installed source. Identify the smallest next change needed to close a concrete gap. Preserve the host controller/pipeline and keep unrelated integrations outside the proposed scope.
 
-Return a compact evidence table, proposed layer/module/class/asset boundaries, implementation steps with acceptance criteria, and exact unresolved evidence. Cite manual sections and vendor-relative source paths/symbols. Mark unexecuted runtime checks as pending. Missing evidence blocks only affected work. In standalone audit mode, end after the report; in the combined start task, continue according to its explicit authorization.
+Return a compact evidence table, proposed layer/module/class/asset boundaries, implementation steps with acceptance criteria, and exact unresolved evidence. Cite manual sections and vendor-relative source paths/symbols. Mark unexecuted runtime checks as pending. Missing evidence blocks only affected work. End after the read-only report.

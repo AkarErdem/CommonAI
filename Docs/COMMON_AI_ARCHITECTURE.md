@@ -2,7 +2,7 @@
 
 ## 1. Decision status and scope
 
-This document recommends a reusable C++-first Unreal NPC behavior plugin that extends AthenaAI. It is an architecture proposal to validate against the installed vendor source. Nothing here asserts an existing native API or completed implementation.
+This document describes the intended C++-first architecture for the AthenaAI-based plugin. Treat proposed future capabilities separately from the implemented first slice; `STATUS.md` and `ATHENA_SOURCE_AUDIT_RESULTS.md` record actual evidence and limits.
 
 The required separation is between **vendor**, **shared framework**, and **consumer integration**. It is not a requirement to build three different AI decision systems.
 

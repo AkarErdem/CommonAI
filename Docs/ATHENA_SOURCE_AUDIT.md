@@ -8,7 +8,7 @@ This document is an audit specification, not a claim that the installed plugin h
 
 Installed source and build results establish exact native APIs, exports and actual executable behavior. If the manual and source materially disagree, record both pieces of evidence and ask before implementing a conflicting behavior; do not silently dismiss the manual. Record actual Unreal/plugin versions and module names independently of the versionless manual filename. The established CommonAI runtime module name is `CommonAI`.
 
-Do not copy vendor implementation bodies, proprietary assets, screenshots or manual contents into other CommonAI files or distribution bundles. The canonical manual directory may be tracked in an authorized repository and must remain intact. Keep the vendor source separately installed. Record concise findings with manual sections and vendor-relative paths/symbols instead of raw host paths.
+Do not copy vendor implementation bodies, proprietary assets, screenshots or manual contents into other CommonAI files or distribution bundles. Keep the canonical manual directory intact; its tracking and distribution require separate owner decisions. Keep the vendor source separately installed. Record concise findings with manual sections and vendor-relative paths/symbols instead of raw host paths.
 
 ## Manual-confirmed facts that affect the design
 
@@ -86,7 +86,7 @@ If this gate fails, report the exact missing hook. Keep the vendor manager and i
 
 ## Runtime proof and acceptance scenarios
 
-Separate source investigation from implementation proof. The standalone `Prompts/01_AUDIT_AND_PLAN.txt` is read-only and marks unexecuted checks pending. `Prompts/00_START_HERE.txt` explicitly authorizes bootstrap, investigation and the first implementation slice in sequence; after investigating the necessary evidence and resolving material decisions, continue to its authorized implementation without asking for the same permission again. A read-only audit invoked alone still does not authorize code changes.
+Separate source investigation from implementation proof. `Prompts/01_AUDIT_AND_PLAN.txt` is read-only and marks unexecuted checks pending. A source audit does not authorize code or tracking changes; implementation needs its own user request and evidence. Do not describe runtime construction or lifecycle behavior as verified before its checks actually run.
 
 Use neutral test fixtures in the authorized current host; it can be an existing game. Verify actual object classes at runtime, not just declarations. CommonAI must compile as its own module and run after a fresh editor restart. Independent minimal-host portability is a pre-release check, not a prerequisite to begin.
 

@@ -4,7 +4,7 @@ Status: implementation policy; actual native API behavior requires source verifi
 
 ## 1. Package boundary
 
-CommonAI is one reusable Unreal Engine plugin containing original runtime code and generic behavior assets. Start with `CommonAI`; add `CommonAIEditor` when validation or authoring tools require it. Editor code must not become a Runtime dependency. A separate vendor-independent Core module is outside the initial scope.
+CommonAI is one reusable Unreal Engine plugin containing original runtime code, with content enabled for generic behavior assets. Start with `CommonAI`; add `CommonAIEditor` when validation or authoring tools require it. Editor code must not become a Runtime dependency. A separate vendor-independent Core module is outside the initial scope.
 
 The plugin descriptor enables content through `CanContainContent` and declares AthenaAI as a plugin dependency. Each module's `.Build.cs` declares the required modules. Read their exact names from installed descriptors and source. A public header exposing an AthenaAI base class requires the relevant public module dependency; moving unrelated implementation details to private headers does not remove that requirement. [S1](SOURCES.md#s1) [S2](SOURCES.md#s2)
 
@@ -12,9 +12,9 @@ Distribute original CommonAI source, approved original assets, configuration, do
 
 ### Manual reference directory
 
-Keep `Docs/AthenaAI_Manual/Athena_AI_Manual.md` and its adjacent `media/` together. This exact path is the primary behavioral reference for agent work. The directory may be tracked in the authorized CommonAI repository. A checkout may supply it, or an authorized workspace may provision it separately. Do not delete it or rename it to add a version suffix. Exclude it from release archives. Any proposal to include it in a release requires a separate owner decision and review of the applicable terms and recipients.
+Keep `Docs/AthenaAI_Manual/Athena_AI_Manual.md` and its adjacent `media/` together. This exact path is the primary behavioral reference for agent work. A checkout may supply it, or an authorized workspace may provision it separately. Do not delete it or rename it to add a version suffix. Exclude it from release archives. Any proposal to include it in a release requires a separate owner decision and review of the applicable terms and recipients.
 
-Check ignore rules and source-control state before changing this directory's tracking. No bootstrap task should add an ignore rule or remove the directory from source control. Tracking does not authorize a commit or publication. Keep consumer-specific data and diagnostics outside CommonAI, including any identifying scan terms.
+Check ignore rules and the index before proposing a tracking change. Existing tracking is not standing permission to add new manual files, change ignore rules, commit, share or publish. Require an explicit owner decision for each tracking operation and preserve the working reference when changing the index. Keep consumer-specific data and diagnostics outside CommonAI, including any identifying scan terms.
 
 ## 2. Asset ownership and references
 

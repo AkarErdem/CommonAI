@@ -4,11 +4,9 @@ A reusable C++ NPC behavior plugin above AthenaAI. Prefer shared NPC mechanisms 
 
 ## Start here
 
-1. Merge this package into the existing `Plugins/CommonAI` folder. The ZIP contains files directly at its root; do not add a wrapper folder. Its AGENTS.md belongs to CommonAI, never to the game root. Preserve local instruction additions, ignore patterns, implementation code and existing progress when merging.
-2. Keep the manual at `Docs/AthenaAI_Manual/Athena_AI_Manual.md`, with `media/` beside it. The directory may be tracked in an authorized repository; confirm sharing rights before distributing it.
-3. Open the authorized host project in Codex and ask it to execute `Plugins/CommonAI/Prompts/00_START_HERE.txt`.
-
-The start task preserves existing host instructions, installs only the small managed host bridge, audits the installed vendor API, then implements the bounded first slice when the relevant decisions are clear. It asks before ambiguous layer placement or a material unresolved behavior decision. It does not publish or commit.
+1. Read `AGENTS.md`, `Docs/STATUS.md` and `Docs/DECISIONS.md` before continuing development. The first native slice is already present; its remaining evidence is recorded in STATUS.
+2. Keep the manual at `Docs/AthenaAI_Manual/Athena_AI_Manual.md`, with `media/` beside it. Check its existing index and ignore state before proposing any tracking change. Tracking, committing and distribution require separate owner decisions.
+3. For a separately authorized host integration, follow `Docs/HOST_INTEGRATION.md` and install only the managed bridge into that host's effective instructions.
 
 ## Files that drive the workflow
 
@@ -26,7 +24,7 @@ The start task preserves existing host instructions, installs only the small man
 | Docs/ROADMAP.md | Ordered milestones and acceptance criteria |
 | Docs/SOURCES.md | Local reference policy and external primary sources |
 
-`Prompts/01_AUDIT_AND_PLAN.txt` is available for an audit-only task. `Prompts/02_IMPLEMENT_FIRST_SLICE.txt` is available for a separate implementation task. The combined start task already authorizes both stages; do not stop merely to request the same authorization again.
+`Prompts/01_AUDIT_AND_PLAN.txt` remains an optional read-only audit entry point. Historical bootstrap and first-slice task prompts were removed after their work was recorded in the audit results, roadmap and status.
 
 ## Local requirements
 
@@ -39,7 +37,7 @@ The runtime module name is **CommonAI**, matching `Source/CommonAI/CommonAI.Buil
 
 ## What this package contains
 
-This is a workflow/documentation update, not a replacement of the user's implementation. The setup package does not itself supply the vendor manual, vendor code, host instructions, host assets, build outputs or a Git history. Existing CommonAI.uplugin, Source, Content and Resources are managed in the local project. Verify their actual state; this package does not establish that a build or runtime test has passed.
+This repository contains the CommonAI runtime module, its current Work/Move/Wait foundation, and the documents needed to continue it. `Docs/STATUS.md` distinguishes completed builds from runtime behavior that has not been checked. AthenaAI remains a separately installed dependency; host assets and integration stay in the consumer.
 
 Keep the common repository separately versioned. Preserve the already chosen submodule or independent-checkout arrangement. Configure ownership in the host's actual source-control system; the plugin's .gitignore does not configure the host. Store Unreal binary assets through Git LFS using the supplied .gitattributes and an installed LFS client.
 
