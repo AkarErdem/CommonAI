@@ -222,3 +222,13 @@ For networked consumers, keep decision and gameplay authority aligned with the s
 - A compulsory new AIController or Character base class.
 
 Revisit a deferred item when a real consumer requirement and a measurable acceptance case justify it.
+
+## Approved foundation implementation update
+
+The consumer boundary now uses composition in one Runtime module. Public component, profile, interaction, movement and tag APIs contain no Athena types. Vendor-derived classes live under Private; the vendor module is a private build dependency.
+
+A CommonAI profile owns authored activity/query/timing data and a curve-table reference. The internal backend projects that source curve into transient vendor preset/task/curve definitions for each agent. Shared authored assets are not mutated during execution. The supplied source row is CSV-safe; vendor row formatting is applied only during projection.
+
+The internal Data Manager calls the vendor scoring implementation. Its replacement hook initiates safe cancellation instead of replacing a running Work immediately. The vendor's zero-candidate fallback bypasses that hook, so a post-score check requests cancellation while the non-interruptible running task retains execution. Public Stop/Profile changes use the same drain. Task cleanup, score selection and action sequencing remain vendor-owned.
+
+Source-owned tag contributions are aggregated for queries. Native montage branching points carry playback identity; contributions are stored on the agent, never the notify asset. Possession transfer clears the old agent's montage windows. Cancellation is distinct from emergency teardown; target destruction and destroyed-pawn cleanup release the surviving owned resources and notify effect owners.

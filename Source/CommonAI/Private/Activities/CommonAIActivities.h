@@ -6,18 +6,11 @@
 #include "AthenaAITask_Sequence.h"
 #include "Contracts/CommonAIWorkProviderComponent.h"
 #include "AITypes.h"
+#include "CommonAIAgentComponent.h"
 #include "CommonAIActivities.generated.h"
 
 class UPathFollowingComponent;
 struct FPathFollowingResult;
-
-UENUM(BlueprintType)
-enum class ECommonAIActivityOutcome : uint8
-{
-	Completed,
-	Failed,
-	Cancelled
-};
 
 // Duration zero makes this an interruptible idle fallback without a finish/rescore loop.
 UCLASS(EditInlineNew, Blueprintable)
@@ -26,6 +19,7 @@ class COMMONAI_API UCommonAIWaitTask : public UAthenaAITask
 	GENERATED_BODY()
 
 public:
+	UCommonAIWaitTask(const FObjectInitializer& ObjectInitializer);
 	virtual void Start(UAthenaAIDataManager* DataManager, AAIController* Controller) override;
 	virtual void Stop(UAthenaAIDataManager* DataManager, AAIController* Controller, EAAITaskResult Result) override;
 
@@ -71,6 +65,7 @@ public:
 	UCommonAIMoveAction();
 	void SetTarget(AActor* Target) { MoveTarget = Target; }
 	void SetGuardObject(UObject* Object) { GuardObject = Object; bHasGuardObject = true; }
+	void SetAcceptanceRadius(float Radius) { AcceptanceRadius = Radius; }
 	virtual void StopAction() override;
 
 protected:
@@ -82,15 +77,17 @@ protected:
 
 private:
 	void OnMoveFinished(FAIRequestID FinishedRequest, const FPathFollowingResult& Result);
+	void CompleteMove(bool bSucceeded);
 	TWeakObjectPtr<AActor> MoveTarget;
 	TWeakObjectPtr<UObject> GuardObject;
 	bool bHasGuardObject = false;
 	TWeakObjectPtr<UPathFollowingComponent> PathFollowing;
 	FDelegateHandle MoveDelegateHandle;
 	FAIRequestID MoveRequestId = FAIRequestID::InvalidRequest;
+	TWeakObjectPtr<UObject> MovementAdapter;
+	FCommonAIInteractionRequest AdapterRequest;
+	bool bUsingAdapter = false;
 };
-
-DECLARE_MULTICAST_DELEGATE_TwoParams(FCommonAIWorkEnded, uint64 /* RunId */, ECommonAIActivityOutcome /* Outcome */);
 
 // The vendor sequence owns action order; this task owns the reservation and semantic result.
 UCLASS(EditInlineNew, Blueprintable)
@@ -104,24 +101,36 @@ public:
 	virtual void Stop(UAthenaAIDataManager* DataManager, AAIController* Controller, EAAITaskResult Result) override;
 	virtual void Cleanup() override;
 
-	uint64 GetRunId() const { return RunId; }
+	void Configure(const UCommonAIProfile* Profile);
+	void RequestCancellation(FGameplayTag Reason);
+	bool IsRunning() const { return bRunning; }
+	bool IsCancelling() const { return bCancelling; }
+	const FCommonAIInteractionRequest& GetRequest() const { return Request; }
 	AAIController* GetRunController() const { return RunController.Get(); }
-	UCommonAIWorkSite* GetSite() const { return Site.Get(); }
+	UObject* GetSite() const { return Site.Get(); }
 	UCommonAIWorkProviderComponent* GetProvider() const { return Provider.Get(); }
-	void SetSite(UCommonAIWorkSite* NewSite);
+	UCommonAIAgentComponent* GetAgent() const { return Agent.Get(); }
+	void SetSite(UObject* NewSite);
 	void MarkReserved() { bHasReservation = true; }
 	void MarkPerformed() { bPerformed = true; }
 	void MarkReleased() { bReleased = true; }
-	FCommonAIWorkEnded OnWorkEnded;
+	void SetInteractionStarted() { bInteractionStarted = true; }
+	void SetFailureReason(FGameplayTag Reason) { EndReason = Reason; }
 
 protected:
 	virtual void FinishTask() override;
+	virtual void TaskTick() override;
 
 private:
 	TWeakObjectPtr<AAIController> RunController;
 	TWeakObjectPtr<UCommonAIWorkProviderComponent> Provider;
-	TWeakObjectPtr<UCommonAIWorkSite> Site;
-	uint64 RunId = 0;
+	TWeakObjectPtr<UObject> Site;
+	TWeakObjectPtr<UCommonAIAgentComponent> Agent;
+	FCommonAIInteractionRequest Request;
+	FGuid BusyContribution;
+	FGameplayTag EndReason;
+	bool bCancelling = false;
+	bool bInteractionStarted = false;
 	bool bRunning = false;
 	bool bHasReservation = false;
 	bool bPerformed = false;

@@ -6,7 +6,7 @@ public class CommonAI : ModuleRules
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-        // Public API dependencies for Athena-derived classes, Unreal AI types and gameplay tags.
+        // Consumers use only engine and CommonAI contracts; the vendor remains an implementation detail.
         PublicDependencyModuleNames.AddRange(
             new string[]
             {
@@ -14,9 +14,9 @@ public class CommonAI : ModuleRules
                 "CoreUObject",
                 "Engine",
                 "AIModule",
-                "GameplayTags",
-                "AthenaAI"
+                "GameplayTags"
             }
         );
+        PrivateDependencyModuleNames.Add("AthenaAI");
     }
 }

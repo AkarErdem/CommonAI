@@ -27,3 +27,13 @@ CommonAI owns the typed execution context, opportunity/provider contract, exclus
 The default Move action uses the active AIController's path following request and aborts only its own request ID. Consumers with a separate movement authority must provide an adapter before enabling the Work task on those controllers. No authored preset, Curve Table, cooked asset or independent minimal-host verification is claimed here.
 
 Both the Development Editor and non-editor Development Game targets compiled and linked the CommonAI runtime module in the authorized local host. Runtime construction, movement, cancellation and activity outcomes were not exercised in this iteration.
+
+## Foundation extension verification
+
+The manager factory now constructs the internal CommonAI Data Manager through the supported virtual CreateDataManager hook. Replacement handling calls the vendor CanReplaceCurrentTask policy before requesting a safe stop; CalculateTasksScore still calls the vendor implementation. The zero-candidate fallback bypass is handled without copying the scoring algorithm.
+
+The consumer-facing component coordinates Stop/Profile/possession transitions. The internal component uses supported initialization and removes its inherited automatic possession listener so that the public component owns the drain policy. The normal scoring/drain, profile replacement and pawn replacement behavior was exercised in focused runtime tests.
+
+Native montage branching-point payloads supply MontageInstanceID. The engine terminates active branching-point states on montage termination. A real transient montage fixture verified overlapping state intervals, replay, interruption and possession-transfer cleanup.
+
+The foundation compiled in both Editor and Game targets. An independent consumer without direct vendor API use successfully executed the saved-profile Work/cancellation smoke flow from a packaged Win64 Development build. See STATUS.md for the scope and remaining host-wide validation limits.

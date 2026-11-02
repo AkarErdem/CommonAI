@@ -1,32 +1,26 @@
 #include "Contracts/CommonAIWorkProviderComponent.h"
 
-bool UCommonAIWorkProviderComponent::FindOpportunity(const FCommonAIExecutionContext& Context, FCommonAIWorkOpportunity& OutOpportunity) const
+UObject* UCommonAIWorkProviderComponent::FindOpportunity(const FCommonAIInteractionRequest& Request, const FGameplayTagQuery& RequiredCapabilities) const
 {
-	OutOpportunity.Site = nullptr;
-	if (!Context.Agent.IsValid() || Context.RunId == 0)
-	{
-		return false;
-	}
-	for (UCommonAIWorkSite* Site : Sites)
-	{
-		if (IsValid(Site) && Site->IsAvailable())
-		{
-			OutOpportunity.Site = Site;
-			return true;
-		}
-	}
-	return false;
+    for (const TWeakObjectPtr<UObject>& Entry : Targets)
+    {
+        UObject* Target = Entry.Get();
+        if (!IsValid(Target)) continue;
+        const FCommonAIInteractionOffer Offer = ICommonAIInteraction::Execute_QueryInteraction(Target, Request);
+        if (Offer.bAvailable && IsValid(Offer.ApproachActor)
+            && (RequiredCapabilities.IsEmpty() || RequiredCapabilities.Matches(Offer.Capabilities))) return Target;
+    }
+    return nullptr;
 }
 
-void UCommonAIWorkProviderComponent::AddSite(UCommonAIWorkSite* Site)
+bool UCommonAIWorkProviderComponent::AddTarget(UObject* Target)
 {
-	if (IsValid(Site))
-	{
-		Sites.AddUnique(Site);
-	}
+    if (!IsValid(Target) || !Target->GetClass()->ImplementsInterface(UCommonAIInteraction::StaticClass())) return false;
+    Targets.AddUnique(Target);
+    return true;
 }
 
-void UCommonAIWorkProviderComponent::RemoveSite(UCommonAIWorkSite* Site)
+void UCommonAIWorkProviderComponent::RemoveTarget(UObject* Target)
 {
-	Sites.Remove(Site);
+    Targets.Remove(Target);
 }

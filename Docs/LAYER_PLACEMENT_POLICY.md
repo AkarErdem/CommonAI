@@ -52,8 +52,9 @@ Record accepted neutral placement decisions in `Docs/DECISIONS.md`, including th
 
 ## Dependency and asset check
 
-The directed ownership chain is **Game -> CommonAI -> AthenaAI**. All layers can use ordinary Unreal Engine modules. CommonAI public Athena inheritance may expose vendor types transitively; this is compatible with the chain. New game-specific logic should enter through CommonAI's public contracts. Ask before introducing a new direct game-to-vendor integration bypass.
+The directed ownership chain is **Game -> CommonAI -> AthenaAI**. All layers can use ordinary Unreal Engine modules. Consumer-facing public contracts must not expose Athena types. Athena-derived implementation classes remain internal to the single CommonAI Runtime module; consumers use composition through CommonAI components and profiles. New game-specific logic should enter through CommonAI's public contracts. Ask before introducing a new direct game-to-vendor integration bypass.
 
 Check C++ includes/casts, Build.cs dependencies, plugin references, config, dynamic loads, hard/soft asset references and serialized metadata. CommonAI must contain no reverse references to a consumer. A string-based load, soft pointer, tag containing a consumer name or runtime cast is still coupling. Tests must also use neutral fixtures.
 
 Use one authoritative owner for each mutable need, reservation and execution. A reusable state component may live in CommonAI; an existing game state model may instead supply that state through an adapter. Never update both.
+

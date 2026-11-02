@@ -18,3 +18,24 @@ Keep entries neutral and concise. Consumer-specific choices and identifying evid
 | D012 | Require a specific owner decision before changing tracking or ignore rules for `Docs/AthenaAI_Manual/`. | A prior trackability statement was too broad. Existing indexed files are preserved until a separate tracking decision; commit, sharing and release each require their own authorization and rights review. |
 
 For each later accepted decision, record the neutral responsibility, selected layer, reason, affected shared API/data, and conditions for reconsideration. Do not infer user approval for an unresolved choice from this template.
+
+## Approved foundation decisions
+
+- D013: One Runtime module with a consumer-facing composition API; Athena implementation types remain private.
+- D014: Semantic tag hierarchies support parent queries. Source-owned contributions preserve overlapping use of the same exact tag; artists select tags in a native montage notify-state without managing identities.
+- D015: Cancellation is accepted and completes at a safe point or natural end. Reservation and state ownership survive until terminal acknowledgement. Emergency teardown is explicit.
+- D016: Initial scope is single-player. One movement/interaction owner remains necessary independently of networking.
+- D017: The agent component is the setup and diagnostic entry point; no separate custom editor dashboard in this milestone.
+
+## General foundation design choices
+
+The owner delegated selection of an efficient, human-configurable direction. The following are design choices made under that delegation, not claims of implemented or verified feature coverage. See GENERAL_FOUNDATION_DESIGN.md and GENERAL_FOUNDATION_IMPLEMENTATION_PLAN.md.
+
+- D018: Provide safe single-player feature equivalence through CommonAI definitions and private Athena adapters. Do not expose unsafe immediate vendor transitions or add a replacement scorer.
+- D019: One Profile is the authoring entry point; Agent Component is the runtime inspection entry point. Use normal asset editors and advanced fields before introducing bespoke tooling.
+- D020: Give numeric considerations one designated input authority, validated typed contexts, explicit validity and configurable retention. Existing state tags keep source-owned aggregation.
+- D021: Separate explicit-command transition mode from command retention. Default explicit orders to HoldUntilCompletion; releasing a command's scoring hold never releases another source's pause.
+- D022: Distinguish reusable action-type tags from stable sequence occurrence identity so Move/Wait/Move/Wait is valid without manual identity bookkeeping.
+- D023: Prefer evaluator composition where vendor native exports are unavailable. Keep BT/ability bindings opt-in and avoid making GAS a mandatory dependency.
+- D024: Generalize the tested lifecycle and migrate the saved Work profile; do not keep a parallel legacy execution/schema path.
+- D025: Characterize vendor policy differences before changing affected semantics. Include public-to-vendor terminal mapping, pawn-generation reset and indefinite natural-completion waits in acceptance tests.

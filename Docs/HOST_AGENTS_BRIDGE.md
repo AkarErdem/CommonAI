@@ -7,7 +7,7 @@ For new NPC behavior, put reusable selection inputs and policy, routines, needs,
 
 When shared behavior needs a game system, add or reuse the smallest typed CommonAI contract required by the concrete behavior and implement it here through the existing authority. Do not add speculative public interfaces or replace the production pipeline just to minimize game code. State the intended placement before coding; ask before a materially ambiguous placement or public-API choice, and record any justified exception.
 
-Maintain `Game -> CommonAI -> AthenaAI` ownership/dependency direction. Do not modify the vendor or introduce CommonAI references back to this project. Keep existing controller and execution authority. Public vendor inheritance can expose transitive Athena types.
+Maintain `Game -> CommonAI -> AthenaAI` ownership/dependency direction. Do not modify the vendor or introduce CommonAI references back to this project. Keep existing controller and execution authority. Consumers use only CommonAI public APIs. Keep Athena-derived implementation classes private inside CommonAI; do not expose vendor types through the consumer-facing API.
 
 For Athena-related work, use `Plugins/CommonAI/Docs/AthenaAI_Manual/Athena_AI_Manual.md` as the behavioral source of truth and verify native APIs against the installed vendor source. Ask about material conflicts rather than silently overriding the manual.
 

@@ -2,72 +2,68 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Contracts/CommonAIInteraction.h"
 #include "CommonAIWorkSite.generated.h"
 
-class AAIController;
-class UCommonAIWorkSite;
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCommonAIInteractionStarted, FCommonAIInteractionRequest, Request);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FCommonAIInteractionCancelRequested, FCommonAIInteractionRequest, Request, FGameplayTag, Reason);
 
-USTRUCT(BlueprintType)
-struct COMMONAI_API FCommonAIWorkOpportunity
+// One target grants one execution at a time. Signals must carry the original execution identity.
+UCLASS(Blueprintable, ClassGroup = (AI), meta = (BlueprintSpawnableComponent))
+class COMMONAI_API UCommonAIWorkSite : public UActorComponent, public ICommonAIInteraction
 {
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadOnly, Category = "Common AI|Work")
-	TObjectPtr<UCommonAIWorkSite> Site = nullptr;
-};
-
-// One site grants one execution at a time. The run ID prevents an old run from releasing a new claim.
-UCLASS(Abstract, Blueprintable, ClassGroup = (AI), meta = (BlueprintSpawnableComponent))
-class COMMONAI_API UCommonAIWorkSite : public UActorComponent
-{
-	GENERATED_BODY()
-
+    GENERATED_BODY()
 public:
-	bool IsAvailable() const;
-	bool IsPerforming() const { return static_cast<bool>(WorkCompletion); }
-	bool TryReserve(AAIController* Agent, uint64 RunId);
-	bool IsReservedBy(const AAIController* Agent, uint64 RunId) const;
-	void Release(AAIController* Agent, uint64 RunId);
-	virtual bool BeginWork(AAIController* Agent, uint64 RunId, TFunction<void(bool)> Completion);
+    UCommonAIWorkSite();
+    virtual FCommonAIInteractionOffer QueryInteraction_Implementation(const FCommonAIInteractionRequest& Request) const override;
+    virtual bool ReserveInteraction_Implementation(const FCommonAIInteractionRequest& Request) override;
+    virtual FCommonAIInteractionResult BeginInteraction_Implementation(const FCommonAIInteractionRequest& Request) override;
+    virtual void RequestInteractionCancellation_Implementation(const FCommonAIInteractionRequest& Request, FGameplayTag Reason) override;
+    virtual FCommonAIInteractionResult GetInteractionResult_Implementation(const FCommonAIInteractionRequest& Request) const override;
+    virtual void ReleaseInteraction_Implementation(const FCommonAIInteractionRequest& Request, bool bEmergencyTeardown) override;
 
+    UFUNCTION(BlueprintCallable, Category = "Common AI|Interaction")
+    void SignalCompletion(FGuid Execution, bool bSucceeded);
+    UFUNCTION(BlueprintCallable, Category = "Common AI|Interaction")
+    void SignalSafeCancellation(FGuid Execution);
+    UPROPERTY(BlueprintAssignable, Category = "Common AI|Interaction") FCommonAIInteractionStarted OnInteractionStarted;
+    UPROPERTY(BlueprintAssignable, Category = "Common AI|Interaction") FCommonAIInteractionCancelRequested OnCancellationRequested;
+    // Emergency teardown cannot wait for animation; effect owners must detach their pending work.
+    UPROPERTY(BlueprintAssignable, Category = "Common AI|Interaction") FCommonAIInteractionStarted OnInteractionAbandoned;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common AI|Interaction") FGameplayTagContainer Activities;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common AI|Interaction") FGameplayTagContainer Capabilities;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common AI|Interaction") FGameplayTagQuery RequiredAgentTags;
+    // When enabled, the effect owner acknowledges a safe stop or completes naturally.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common AI|Interaction") bool bWaitForSafeCancellation = true;
 protected:
-	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
-	virtual void CancelWork();
-	void CompleteWork(AAIController* Agent, uint64 RunId, bool bSucceeded);
-	AAIController* GetReservationOwner() const { return ReservationOwner.Get(); }
-	uint64 GetReservationRunId() const { return ReservationRunId; }
-
-private:
-	TWeakObjectPtr<AAIController> ReservationOwner;
-	uint64 ReservationRunId = 0;
-	TFunction<void(bool)> WorkCompletion;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+    virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+    virtual void ClearExecution();
+    void AbandonCurrentExecution();
+    bool Owns(const FCommonAIInteractionRequest& Request) const;
+    FCommonAIInteractionResult Result;
+    FGuid Execution;
+    TWeakObjectPtr<AAIController> ReservationOwner;
+    FGameplayTag ReservedActivity;
+    bool bTearingDown = false;
 };
 
 UCLASS(ClassGroup = (AI), meta = (BlueprintSpawnableComponent))
 class COMMONAI_API UCommonAITimedWorkSite : public UCommonAIWorkSite
 {
-	GENERATED_BODY()
-
+    GENERATED_BODY()
 public:
-	virtual bool BeginWork(AAIController* Agent, uint64 RunId, TFunction<void(bool)> Completion) override;
-
+    virtual FCommonAIInteractionResult BeginInteraction_Implementation(const FCommonAIInteractionRequest& Request) override;
+    UPROPERTY(EditAnywhere, Category = "Common AI|Work", meta = (ClampMin = "0.001", Units = "Seconds"))
+    float WorkDurationSeconds = 2.0f;
 protected:
-	virtual void CancelWork() override;
-
-	UPROPERTY(EditAnywhere, Category = "Common AI|Work", meta = (ClampMin = "0.001", Units = "Seconds"))
-	float WorkDurationSeconds = 2.0f;
-
+    virtual void ClearExecution() override;
 private:
-	FTimerHandle WorkTimer;
+    FTimerHandle WorkTimer;
 };
 
-// An external neutral signal completes this site; game-specific effects stay in the consumer.
 UCLASS(ClassGroup = (AI), meta = (BlueprintSpawnableComponent))
 class COMMONAI_API UCommonAISignaledWorkSite : public UCommonAIWorkSite
 {
-	GENERATED_BODY()
-
-public:
-	UFUNCTION(BlueprintCallable, Category = "Common AI|Work")
-	void SignalCompletion(bool bSucceeded);
+    GENERATED_BODY()
 };

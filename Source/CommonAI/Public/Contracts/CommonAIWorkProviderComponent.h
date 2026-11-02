@@ -1,34 +1,18 @@
 #pragma once
-
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "CommonAIWorkSite.h"
+#include "Contracts/CommonAIInteraction.h"
 #include "CommonAIWorkProviderComponent.generated.h"
 
-class AAIController;
-
-struct FCommonAIExecutionContext
-{
-	TWeakObjectPtr<AAIController> Agent;
-	uint64 RunId = 0;
-};
-
-// Attach to an AIController; authored sites may be supplied by a consumer without changing the controller class.
+// Registered targets avoid global world scans. Targets can implement the contract on actors or components.
 UCLASS(Blueprintable, ClassGroup = (AI), meta = (BlueprintSpawnableComponent))
 class COMMONAI_API UCommonAIWorkProviderComponent : public UActorComponent
 {
-	GENERATED_BODY()
-
+    GENERATED_BODY()
 public:
-	virtual bool FindOpportunity(const FCommonAIExecutionContext& Context, FCommonAIWorkOpportunity& OutOpportunity) const;
-
-	UFUNCTION(BlueprintCallable, Category = "Common AI|Work")
-	void AddSite(UCommonAIWorkSite* Site);
-
-	UFUNCTION(BlueprintCallable, Category = "Common AI|Work")
-	void RemoveSite(UCommonAIWorkSite* Site);
-
+    UObject* FindOpportunity(const FCommonAIInteractionRequest& Request, const FGameplayTagQuery& RequiredCapabilities) const;
+    UFUNCTION(BlueprintCallable, Category = "Common AI|Work") bool AddTarget(UObject* Target);
+    UFUNCTION(BlueprintCallable, Category = "Common AI|Work") void RemoveTarget(UObject* Target);
 private:
-	UPROPERTY(Transient)
-	TArray<TObjectPtr<UCommonAIWorkSite>> Sites;
+    UPROPERTY(Transient) TArray<TWeakObjectPtr<UObject>> Targets;
 };

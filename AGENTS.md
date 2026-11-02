@@ -20,7 +20,7 @@ The ownership direction is `Game -> CommonAI -> AthenaAI`, with ordinary Unreal 
 
 Use AthenaAI as the separately installed vendor implementation. Do not modify it. Useful native Component, Preset, Task, Sequence, Action, Service and Evaluator subclasses belong in CommonAI when supported. A Data Manager subclass must be instantiated through a verified supported construction path; otherwise use a supported composition alternative and disclose the limitation. Do not invent hooks or use multiple UObject inheritance to combine task families.
 
-CommonAI must not depend on any consumer module, concrete consumer class, /Game asset, soft path, identifier-based branch or consumer-specific configuration. Define small interfaces/context records in CommonAI and implement consumer bindings in the game. Game integration should use CommonAI's API rather than introducing a new direct vendor coupling; an unavoidable exception requires an explicit decision. Public Athena-derived headers naturally expose a transitive vendor dependency, which is expected.
+CommonAI must not depend on any consumer module, concrete consumer class, /Game asset, soft path, identifier-based branch or consumer-specific configuration. Define small interfaces/context records in CommonAI and implement consumer bindings in the game. Game integration should use CommonAI's API rather than introducing a new direct vendor coupling; an unavoidable exception requires an explicit decision. Consumer-facing public headers must expose only engine and CommonAI contracts. Keep Athena-derived declarations internal and Athena as a private module dependency. The public component/profile boundary uses composition.
 
 ## Prefer shared mechanisms; preserve user choice
 
@@ -43,3 +43,4 @@ Use C++ for behavior and lifecycle; use original assets for configuration, prese
 Before completing a change, inspect C++/Build.cs/descriptor dependencies and hard/soft asset references for the intended direction. Validate meaningful lifecycle risks and builds relevant to the change. Verify portability in an independent minimal host before release; it is not a prerequisite to start inside the authorized host. State unrun checks honestly. Do not claim text scans prove binary asset safety.
 
 `Prompts/01_AUDIT_AND_PLAN.txt` is a read-only audit entry point when explicitly invoked. The completed bootstrap and first-slice prompts are no longer active authorization. Ask when placement, evidence or scope is materially unresolved. Maintain `Docs/STATUS.md` and neutral audit evidence; do not overwrite existing progress with templates. Never commit, push, publish or advance to later roadmap phases without the relevant user request.
+
