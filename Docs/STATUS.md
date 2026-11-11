@@ -12,7 +12,7 @@ The reusable daily-life implementation now includes default binding to an engine
 
 Persistence uses explicit weak resident registration, stable identities, retained unloaded records and optional clock snapshots. Resident-only snapshots leave external time authority untouched. Records and loaded identities are checked before restore writes; callback-driven lifecycle changes return failure and may leave partially applied state. No automatic disk saves or legacy compatibility branch are introduced.
 
-Activities, occupations, location capabilities, interruption reasons and daily-life consideration tags are centralized in `CommonAITags` under `CommonAI.*`. Seven shared profile assets (Farmer, Merchant, TavernWorker, Guard, Healer, Laborer and Resident) and `SO_DailyLifeSingleSlot` are under `/CommonAI/DailyLife`. Neutral fixtures and acceptance checks belong to the CommonAITests Editor module; the CommonAI Runtime module has no dependency on that module.
+At this checkpoint, CommonAI centralized daily-life tags under `CommonAI.*` and shipped seven occupation profiles alongside `SO_DailyLifeSingleSlot` under `/CommonAI/DailyLife`. The consumer-owned authoring milestone above moved occupation tags and profiles into the game. Neutral fixtures and acceptance checks belong to the CommonAITests Editor module.
 
 CommonAITests is restricted to Editor targets, including Play In Editor and editor commandlets. Development and Shipping game targets do not compile or load it. Consumers that reference its fixtures must also guard that dependency with `Target.bBuildEditor`. The development settlement is a PIE fixture, not a packaged gameplay spawner.
 

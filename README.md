@@ -90,10 +90,10 @@ This example uses an empty C++ project, one Gardener and one Watering Site. The 
 ### Place the NPC and bind its target
 
 1. Make a level with a walkable floor, a `Player Start` clear of the NPC, and a **Nav Mesh Bounds Volume** covering the floor. Press **P** in the level viewport to check that both the NPC's starting position and the destination are on the green NavMesh.
-2. Place a **Common AI Activity Location** actor on that floor and label it `Watering Site`. In its `SmartObject` component, assign `/CommonAI/DailyLife/SmartObjects/SO_DailyLifeSingleSlot` as the definition. Keep the slot at the actor origin. In its `Site` component, set a nonzero `Site ID` unique to the placed site and add `Example.Activity.WaterPlants` to `Activities`.
+2. Place a **Common AI Activity Location** actor on that floor and label it `Watering Site`. In its `SmartObject` component, assign `/CommonAI/DailyLife/SmartObjects/SO_DailyLifeSingleSlot` as the definition. Keep the slot at the actor origin. In its `Site` component, use **Generate** in the `Site ID` field's menu and add `Example.Activity.WaterPlants` to `Activities`.
 3. Create `BP_Gardener` with **Character** as its parent. Set **AI Controller Class** to `AIController` and **Auto Possess AI** to **Placed in World or Spawned**. Add a **Common AI Daily Life** component and assign `DA_Gardener` to its `Profile`. Leave `Routine Context` empty to use the shared clock.
 4. In `BP_Gardener`, add an **Instance Editable** variable named `ActivityLocation` of type **Common AI Activity Location Object Reference**. Compile. In the **Construction Script**, guard that variable with **Is Valid**. On the valid execution pin, call **Set Destinations** on the Daily Life component. Feed it a **Make Array** with one element, the **Get Site** result from `ActivityLocation`. The array holds `CommonAISmartObjectSite` component references, so use the actor picker on `ActivityLocation` to choose the level actor.
-5. Compile and save `BP_Gardener`. Place one instance several meters from `Watering Site`. Select the Gardener instance in the Outliner and assign **Activity Location** to the placed `Watering Site` in Details. Save the level. The Construction Script fills the Daily Life component's `Destinations` before the routine binds to the controller.
+5. Compile and save `BP_Gardener`. Place one instance several meters from `Watering Site`. Select the Gardener instance in the Outliner. In Details, open **Activity Location**, search for `Watering Site` and choose it from the actor picker. Save the level. The Construction Script fills the Daily Life component's `Destinations` before the routine binds to the controller.
 
 ### Check the result in Play In Editor
 
@@ -103,7 +103,9 @@ Press **Play** and run `CommonAI.Debug.All 1` in the console. The Gardener shoul
 |---|---|
 | No routine starts | Check AI possession, the assigned profile and its registered tags. The profile's Blueprint `Validate Profile` function returns its configuration errors. An existing agent with its own profile, inputs or movement can prevent binding. |
 | The NPC waits | Check the `Activity Location` reference on the placed instance, the `Site ID`, the slot definition and the site's matching activity tag. A capability query must match the site's capabilities when one is configured. |
-| The NPC fails to arrive | Check the NavMesh between the NPC and the site origin, and verify that neither another move request nor a running behavior tree owns the controller. |
+| The NPC fails to arrive | Check that the NavMesh covers the route and the site origin. If Recast logs a tile-limit warning, increase the tile budget for the test map and rebuild navigation. Check whether another move request or a running behavior tree owns the controller. |
+
+**Verified in UE 5.8.3 Win64 with AthenaAI 2.6.** In a blank C++ project, the Gardener Blueprint compiled and the Details actor picker accepted the placed `Watering Site`. After saving the level and restarting the Editor, the selected actor and the exact `Site` component in the one-element `Destinations` array both resolved. In PIE the Gardener travelled 900 cm to the site, interacted while holding the Smart Object slot, reported `Completed` and released the slot. This run covered the single timed activity and the standard controller, clock and navigation used in this walkthrough.
 
 ## Using daily-life behavior
 
