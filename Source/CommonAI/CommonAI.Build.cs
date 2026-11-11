@@ -14,9 +14,12 @@ public class CommonAI : ModuleRules
                 "CoreUObject",
                 "Engine",
                 "AIModule",
-                "GameplayTags"
+                "GameplayTags",
+                "SmartObjectsModule",
+                "UMG"
             }
         );
         PrivateDependencyModuleNames.Add("AthenaAI");
+        PrivateDependencyModuleNames.AddRange(new[] { "Slate", "SlateCore" });
     }
 }

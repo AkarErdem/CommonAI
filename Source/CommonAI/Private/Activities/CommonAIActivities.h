@@ -7,31 +7,12 @@
 #include "Contracts/CommonAIWorkProviderComponent.h"
 #include "AITypes.h"
 #include "CommonAIAgentComponent.h"
+#include "Definitions/CommonAITaskDefinition.h"
+#include "Execution/CommonAIExecution.h"
 #include "CommonAIActivities.generated.h"
 
 class UPathFollowingComponent;
 struct FPathFollowingResult;
-
-// Duration zero makes this an interruptible idle fallback without a finish/rescore loop.
-UCLASS(EditInlineNew, Blueprintable)
-class COMMONAI_API UCommonAIWaitTask : public UAthenaAITask
-{
-	GENERATED_BODY()
-
-public:
-	UCommonAIWaitTask(const FObjectInitializer& ObjectInitializer);
-	virtual void Start(UAthenaAIDataManager* DataManager, AAIController* Controller) override;
-	virtual void Stop(UAthenaAIDataManager* DataManager, AAIController* Controller, EAAITaskResult Result) override;
-
-protected:
-	UPROPERTY(EditDefaultsOnly, Category = "Common AI|Wait", meta = (ClampMin = "0.0", Units = "Seconds"))
-	float DurationSeconds = 0.0f;
-
-private:
-	FTimerHandle WaitTimer;
-	uint64 RunId = 0;
-	bool bRunning = false;
-};
 
 // Common async action policy: one completion per start, deferred to avoid vendor sequence reentrancy.
 UCLASS(Abstract, EditInlineNew, Blueprintable)
@@ -42,12 +23,17 @@ class COMMONAI_API UCommonAIAction : public UAthenaAIAction
 public:
 	virtual void StartAction(UAthenaAIDataManager* DataManager, AAIController* Controller) override;
 	virtual void StopAction() override;
+	virtual void RequestSafeCancellation(FGameplayTag Reason) {}
+	virtual bool HasReachedSafeEnd() const { return true; }
+	void SetActionIdentity(FGameplayTag Id) { ActionTag = Id; }
+	void SetTickCadence(float Seconds) { TickInterval = Seconds; }
 
 protected:
 	virtual void ExecuteStep(AAIController* Controller) PURE_VIRTUAL(UCommonAIAction::ExecuteStep, );
+	virtual void ActionTick() override final;
+	virtual void TickStep() {}
 	void CompleteStep(bool bSucceeded);
 	bool IsStepCurrent(uint64 ExpectedEpoch) const;
-	uint64 GetStepEpoch() const { return StepEpoch; }
 
 private:
 	uint64 StepEpoch = 0;
@@ -67,10 +53,11 @@ public:
 	void SetGuardObject(UObject* Object) { GuardObject = Object; bHasGuardObject = true; }
 	void SetAcceptanceRadius(float Radius) { AcceptanceRadius = Radius; }
 	virtual void StopAction() override;
+	virtual void RequestSafeCancellation(FGameplayTag Reason) override { StopAction(); }
 
 protected:
 	virtual void ExecuteStep(AAIController* Controller) override;
-	virtual void ActionTick() override;
+	virtual void TickStep() override;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Common AI|Move", meta = (ClampMin = "0.0", Units = "Centimeters"))
 	float AcceptanceRadius = 50.0f;
@@ -89,20 +76,30 @@ private:
 	bool bUsingAdapter = false;
 };
 
-// The vendor sequence owns action order; this task owns the reservation and semantic result.
-UCLASS(EditInlineNew, Blueprintable)
-class COMMONAI_API UCommonAIWorkTask : public UAthenaAITask_Sequence
+// Vendor task/sequence lifecycle with one resource-safe execution contract for every definition.
+UCLASS(EditInlineNew, NotBlueprintable)
+class COMMONAI_API UCommonAITaskAdapter : public UAthenaAITask_Sequence
 {
 	GENERATED_BODY()
 
 public:
-	UCommonAIWorkTask(const FObjectInitializer& ObjectInitializer);
+	UCommonAITaskAdapter(const FObjectInitializer& ObjectInitializer);
 	virtual void Start(UAthenaAIDataManager* DataManager, AAIController* Controller) override;
 	virtual void Stop(UAthenaAIDataManager* DataManager, AAIController* Controller, EAAITaskResult Result) override;
 	virtual void Cleanup() override;
 
-	void Configure(const UCommonAIProfile* Profile);
+	void Configure(const FCommonAITaskDefinition& InDefinition, bool bInFallback = false);
+	const FCommonAITaskDefinition& GetDefinition() const { return Definition; }
+	bool IsFallback() const { return bFallback; }
+	void SetUtilityInterruptible(bool bValue) { Definition.bUtilityInterruptible = bValue; }
+	void SetMomentumPolicy(int32 Maximum, int32 Reduction, float DecaySeconds)
+	{
+		MaxMomentum = static_cast<uint8>(Maximum);
+		MomentumScoreReduction = static_cast<uint8>(Reduction);
+		MomentumDecreaseTime = DecaySeconds;
+	}
 	void RequestCancellation(FGameplayTag Reason);
+	bool TryFinishCancellation();
 	bool IsRunning() const { return bRunning; }
 	bool IsCancelling() const { return bCancelling; }
 	const FCommonAIInteractionRequest& GetRequest() const { return Request; }
@@ -110,32 +107,61 @@ public:
 	UObject* GetSite() const { return Site.Get(); }
 	UCommonAIWorkProviderComponent* GetProvider() const { return Provider.Get(); }
 	UCommonAIAgentComponent* GetAgent() const { return Agent.Get(); }
-	void SetSite(UObject* NewSite);
-	void MarkReserved() { bHasReservation = true; }
-	void MarkPerformed() { bPerformed = true; }
-	void MarkReleased() { bReleased = true; }
-	void SetInteractionStarted() { bInteractionStarted = true; }
+	bool SetSite(UObject* NewSite);
+	bool PrepareReservation()
+	{
+		if (bHasReservation) return false;
+		Request.Operation = FGuid::NewGuid();
+		return true;
+	}
+	void MarkReserved();
+	void MarkReleased() { bHasReservation = false; }
 	void SetFailureReason(FGameplayTag Reason) { EndReason = Reason; }
+	FCommonAIExecutionContext MakeExecutionContext(FGameplayTag Action, FGuid Entry) const;
+	bool SignalExecutionComplete(FGuid Invocation, ECommonAIInteractionStatus Status, FGameplayTag Reason);
+	UCommonAIExecution* GetActiveExecution() const;
 
 protected:
 	virtual void FinishTask() override;
 	virtual void TaskTick() override;
 
 private:
+	UPROPERTY() FCommonAITaskDefinition Definition;
+	UCommonAIAction* CurrentCommonAction() const;
 	TWeakObjectPtr<AAIController> RunController;
 	TWeakObjectPtr<UCommonAIWorkProviderComponent> Provider;
 	TWeakObjectPtr<UObject> Site;
 	TWeakObjectPtr<UCommonAIAgentComponent> Agent;
-	FCommonAIInteractionRequest Request;
+	UPROPERTY(Transient) FCommonAIInteractionRequest Request;
 	FGuid BusyContribution;
 	FGameplayTag EndReason;
 	bool bCancelling = false;
-	bool bInteractionStarted = false;
+	UPROPERTY() bool bFallback = false;
 	bool bRunning = false;
 	bool bHasReservation = false;
-	bool bPerformed = false;
-	bool bReleased = false;
 	bool bSequenceFinished = false;
+};
+
+UCLASS(EditInlineNew, NotBlueprintable)
+class UCommonAIConfiguredAction : public UCommonAIAction
+{
+	GENERATED_BODY()
+public:
+	void Configure(const FCommonAIActionDefinition& InDefinition, float IntervalSeconds);
+	virtual void StopAction() override;
+	virtual void RequestSafeCancellation(FGameplayTag Reason) override;
+	virtual bool HasReachedSafeEnd() const override;
+	bool SignalComplete(FGuid Invocation, ECommonAIInteractionStatus Status, FGameplayTag Reason);
+	UCommonAIExecution* GetExecution() const { return Execution; }
+protected:
+	virtual void ExecuteStep(AAIController* Controller) override;
+	virtual void TickStep() override;
+private:
+	UPROPERTY() FCommonAIActionDefinition Definition;
+	UPROPERTY(Instanced) TObjectPtr<UCommonAIExecution> Execution;
+	void HandleFinished(FGuid Invocation, const FCommonAIInteractionResult& Result);
+	FDelegateHandle CompletionHandle;
+	double LastTickTime = 0.0;
 };
 
 UCLASS(EditInlineNew)
@@ -162,7 +188,7 @@ public:
 	UCommonAIPerformWorkAction();
 protected:
 	virtual void ExecuteStep(AAIController* Controller) override;
-	virtual void ActionTick() override;
+	virtual void TickStep() override;
 };
 
 UCLASS(EditInlineNew)
@@ -172,3 +198,5 @@ class COMMONAI_API UCommonAIReleaseWorkAction : public UCommonAIAction
 protected:
 	virtual void ExecuteStep(AAIController* Controller) override;
 };
+
+

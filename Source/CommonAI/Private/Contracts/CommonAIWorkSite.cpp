@@ -13,8 +13,9 @@ UCommonAIWorkSite::UCommonAIWorkSite()
 
 bool UCommonAIWorkSite::Owns(const FCommonAIInteractionRequest& Request) const
 {
-    return Request.Execution.IsValid() && Request.Execution == Execution && IsValid(Request.Agent)
-        && ReservationOwner.Get() == Request.Agent;
+    return Request.Execution.IsValid() && Request.Execution == Reservation.Execution && Request.Operation.IsValid()
+        && Request.Operation == Reservation.Operation && IsValid(Request.Agent) && Reservation.Agent == Request.Agent
+        && Request.Generation == Reservation.Generation && Request.Pawn == Reservation.Pawn && Request.Activity == Reservation.Activity;
 }
 
 FCommonAIInteractionOffer UCommonAIWorkSite::QueryInteraction_Implementation(const FCommonAIInteractionRequest& Request) const
@@ -24,7 +25,7 @@ FCommonAIInteractionOffer UCommonAIWorkSite::QueryInteraction_Implementation(con
     Offer.Capabilities = Capabilities;
     const UCommonAIAgentComponent* Agent = IsValid(Request.Agent)
         ? Request.Agent->FindComponentByClass<UCommonAIAgentComponent>() : nullptr;
-    Offer.bAvailable = !bTearingDown && IsValid(GetOwner()) && IsValid(Request.Agent) && !ReservationOwner.IsValid()
+    Offer.bAvailable = !bTearingDown && IsValid(GetOwner()) && IsValid(Request.Agent) && !IsValid(Reservation.Agent)
         && Activities.HasTag(Request.Activity)
         && (RequiredAgentTags.IsEmpty() || (Agent && RequiredAgentTags.Matches(Agent->GetEffectiveTags())));
     return Offer;
@@ -32,12 +33,18 @@ FCommonAIInteractionOffer UCommonAIWorkSite::QueryInteraction_Implementation(con
 
 bool UCommonAIWorkSite::ReserveInteraction_Implementation(const FCommonAIInteractionRequest& Request)
 {
-    if (!Request.Execution.IsValid() || !ICommonAIInteraction::Execute_QueryInteraction(this, Request).bAvailable)
+    if (!Request.Execution.IsValid() || !Request.Operation.IsValid() || !ICommonAIInteraction::Execute_QueryInteraction(this, Request).bAvailable)
         return false;
+    if (Reservation.Execution.IsValid())
+    {
+        const FCommonAIInteractionRequest Previous = Reservation;
+        const bool bNotify = !Result.IsTerminal();
+        ClearExecution();
+        if (bNotify) OnInteractionAbandoned.Broadcast(Previous);
+        if (Reservation.Execution.IsValid() || !ICommonAIInteraction::Execute_QueryInteraction(this, Request).bAvailable) return false;
+    }
     ClearExecution();
-    Execution = Request.Execution;
-    ReservationOwner = Request.Agent;
-    ReservedActivity = Request.Activity;
+    Reservation = Request;
     Result.Status = ECommonAIInteractionStatus::Reserved;
     return true;
 }
@@ -57,7 +64,7 @@ void UCommonAIWorkSite::RequestInteractionCancellation_Implementation(const FCom
     Result.Status = ECommonAIInteractionStatus::Cancelling;
     Result.Reason = Reason;
     OnCancellationRequested.Broadcast(Request, Reason);
-    if (bWasReserved || !bWaitForSafeCancellation) SignalSafeCancellation(Request.Execution);
+    if (bWasReserved || !bWaitForSafeCancellation) SignalSafeCancellation(Request);
 }
 
 FCommonAIInteractionResult UCommonAIWorkSite::GetInteractionResult_Implementation(const FCommonAIInteractionRequest& Request) const
@@ -65,9 +72,9 @@ FCommonAIInteractionResult UCommonAIWorkSite::GetInteractionResult_Implementatio
     return Owns(Request) ? Result : FCommonAIInteractionResult{};
 }
 
-void UCommonAIWorkSite::SignalCompletion(FGuid ExpectedExecution, bool bSucceeded)
+void UCommonAIWorkSite::SignalCompletion(const FCommonAIInteractionRequest& Request, bool bSucceeded)
 {
-    if (ExpectedExecution != Execution || !ReservationOwner.IsValid()
+    if (!Owns(Request)
         || (Result.Status != ECommonAIInteractionStatus::Running && Result.Status != ECommonAIInteractionStatus::Cancelling)) return;
     const bool bCancelling = Result.Status == ECommonAIInteractionStatus::Cancelling;
     Result.Status = !bSucceeded ? ECommonAIInteractionStatus::Failed
@@ -75,28 +82,33 @@ void UCommonAIWorkSite::SignalCompletion(FGuid ExpectedExecution, bool bSucceede
     if (!bSucceeded) Result.Reason = CommonAITags::Reason_InteractionFailed;
 }
 
-void UCommonAIWorkSite::SignalSafeCancellation(FGuid ExpectedExecution)
+void UCommonAIWorkSite::SignalSafeCancellation(const FCommonAIInteractionRequest& Request)
 {
-    if (ExpectedExecution == Execution && ReservationOwner.IsValid() && Result.Status == ECommonAIInteractionStatus::Cancelling)
+    if (Owns(Request) && Result.Status == ECommonAIInteractionStatus::Cancelling)
         Result.Status = ECommonAIInteractionStatus::Cancelled;
 }
 
-void UCommonAIWorkSite::ReleaseInteraction_Implementation(const FCommonAIInteractionRequest& Request, bool bEmergencyTeardown)
+bool UCommonAIWorkSite::ReleaseInteraction_Implementation(const FCommonAIInteractionRequest& Request, bool bEmergencyTeardown)
 {
-    if (Owns(Request) && (bEmergencyTeardown || Result.IsTerminal() || Result.Status == ECommonAIInteractionStatus::Reserved))
+    const bool bMatchesLease = Request.Execution.IsValid() && Request.Execution == Reservation.Execution
+        && Request.Operation.IsValid() && Request.Operation == Reservation.Operation
+        && Request.Generation == Reservation.Generation && Request.Pawn == Reservation.Pawn && Request.Activity == Reservation.Activity;
+    const bool bEmergencyOwner = bEmergencyTeardown && bMatchesLease
+        && (!IsValid(Reservation.Agent) || Reservation.Agent == Request.Agent);
+    if ((Owns(Request) || bEmergencyOwner) && (bEmergencyTeardown || Result.IsTerminal() || Result.Status == ECommonAIInteractionStatus::Reserved))
     {
         const bool bNotifyAbandonment = bEmergencyTeardown && !Result.IsTerminal();
         ClearExecution();
         // Clear before notifying: a listener may synchronously reserve a new execution.
         if (bNotifyAbandonment) OnInteractionAbandoned.Broadcast(Request);
+        return true;
     }
+    return false;
 }
 
 void UCommonAIWorkSite::ClearExecution()
 {
-    Execution.Invalidate();
-    ReservationOwner.Reset();
-    ReservedActivity = {};
+    Reservation = {};
     Result = {};
 }
 
@@ -115,11 +127,8 @@ void UCommonAIWorkSite::OnComponentDestroyed(bool bDestroyingHierarchy)
 void UCommonAIWorkSite::AbandonCurrentExecution()
 {
     bTearingDown = true;
-    FCommonAIInteractionRequest Previous;
-    Previous.Execution = Execution;
-    Previous.Agent = ReservationOwner.Get();
-    Previous.Activity = ReservedActivity;
-    const bool bNotify = Execution.IsValid() && !Result.IsTerminal();
+    const FCommonAIInteractionRequest Previous = Reservation;
+    const bool bNotify = Reservation.Execution.IsValid() && !Result.IsTerminal();
     ClearExecution();
     if (bNotify) OnInteractionAbandoned.Broadcast(Previous);
 }
@@ -131,10 +140,13 @@ FCommonAIInteractionResult UCommonAITimedWorkSite::BeginInteraction_Implementati
     if (Started.Status == ECommonAIInteractionStatus::Running || Started.Status == ECommonAIInteractionStatus::Cancelling)
     {
         TWeakObjectPtr<UCommonAITimedWorkSite> WeakThis(this);
-        const FGuid ExpectedExecution = Request.Execution;
-        GetWorld()->GetTimerManager().SetTimer(WorkTimer, [WeakThis, ExpectedExecution]()
+        FCommonAIInteractionRequest CompletionRequest = Request;
+        TWeakObjectPtr<AAIController> WeakAgent(Request.Agent);
+        CompletionRequest.Agent = nullptr;
+        GetWorld()->GetTimerManager().SetTimer(WorkTimer, [WeakThis, WeakAgent, CompletionRequest]() mutable
         {
-            if (WeakThis.IsValid()) WeakThis->SignalCompletion(ExpectedExecution, true);
+            CompletionRequest.Agent = WeakAgent.Get();
+            if (WeakThis.IsValid()) WeakThis->SignalCompletion(CompletionRequest, true);
         }, WorkDurationSeconds, false);
     }
     return Started;

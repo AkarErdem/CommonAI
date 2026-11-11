@@ -2,6 +2,8 @@
 
 #include "AIController.h"
 #include "CommonAIProfile.h"
+#include "Athena/CommonAIBackend.h"
+#include "Integration/CommonAIBehaviorTreeExecution.h"
 #include "CommonAITags.h"
 #include "Contracts/CommonAIMovement.h"
 #include "AthenaAIComponent.h"
@@ -15,44 +17,12 @@ namespace
 	
 }
 
-UCommonAIWaitTask::UCommonAIWaitTask(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
-{
-    TaskTag = CommonAITags::Activity_Wait;
-    ReplaceResistance = 0.0f;
-    MaxMomentum = 0;
-}
-void UCommonAIWaitTask::Start(UAthenaAIDataManager* DataManager, AAIController* Controller)
-{
-	++RunId;
-	bRunning = true;
-	Super::Start(DataManager, Controller);
-	if (DurationSeconds <= 0.0f || !GetWorld())
-	{
-		return;
-	}
-	const uint64 ExpectedRun = RunId;
-	TWeakObjectPtr<UCommonAIWaitTask> WeakThis(this);
-	GetWorld()->GetTimerManager().SetTimer(WaitTimer, [WeakThis, ExpectedRun]()
-	{
-		if (WeakThis.IsValid() && WeakThis->bRunning && WeakThis->RunId == ExpectedRun)
-		{
-			WeakThis->FinishTask();
-		}
-	}, DurationSeconds, false);
-}
-
-void UCommonAIWaitTask::Stop(UAthenaAIDataManager* DataManager, AAIController* Controller, EAAITaskResult Result)
-{
-	bRunning = false;
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(WaitTimer);
-	}
-	Super::Stop(DataManager, Controller, Result);
-}
-
 void UCommonAIAction::StartAction(UAthenaAIDataManager* DataManager, AAIController* Controller)
 {
+	UCommonAIBackend* Backend = CastChecked<UCommonAIBackend>(OwnerTask->GetOwnerAthenaAIComp());
+	TGuardValue<bool> Guard(Backend->bInCallback, true);
+	if (UCommonAITaskAdapter* Task = Cast<UCommonAITaskAdapter>(OwnerTask))
+		if (Task->GetAgent()) Task->GetAgent()->SetCurrentAction(ActionTag, {});
 	++StepEpoch;
 	bStepActive = true;
 	bCompletionQueued = false;
@@ -60,7 +30,17 @@ void UCommonAIAction::StartAction(UAthenaAIDataManager* DataManager, AAIControll
 	if (bStepActive)
 	{
 		ExecuteStep(Controller);
+		if (UCommonAITaskAdapter* Task = Cast<UCommonAITaskAdapter>(OwnerTask))
+			if (Task->GetAgent()) Task->GetAgent()->QueueActivityProgress();
 	}
+}
+
+void UCommonAIAction::ActionTick()
+{
+	if (!bStepActive) return;
+	UCommonAIBackend* Backend = CastChecked<UCommonAIBackend>(OwnerTask->GetOwnerAthenaAIComp());
+	TGuardValue<bool> Guard(Backend->bInCallback, true);
+	TickStep();
 }
 
 void UCommonAIAction::StopAction()
@@ -92,7 +72,9 @@ void UCommonAIAction::CompleteStep(bool bSucceeded)
 	{
 		if (WeakThis.IsValid() && WeakThis->IsStepCurrent(ExpectedEpoch))
 		{
-			if (const UCommonAIWorkTask* Task = Cast<UCommonAIWorkTask>(WeakThis->OwnerTask))
+			UCommonAIBackend* Backend = CastChecked<UCommonAIBackend>(WeakThis->OwnerTask->GetOwnerAthenaAIComp());
+			TGuardValue<bool> Guard(Backend->bInCallback, true);
+			if (const UCommonAITaskAdapter* Task = Cast<UCommonAITaskAdapter>(WeakThis->OwnerTask))
 				if (Task->IsCancelling()) return;
 			WeakThis->FinishAction(!bSucceeded);
 		}
@@ -108,10 +90,11 @@ UCommonAIMoveAction::UCommonAIMoveAction()
 void UCommonAIMoveAction::ExecuteStep(AAIController* Controller)
 {
 	AActor* Target = MoveTarget.Get();
-	const UCommonAIWorkTask* Work = Cast<UCommonAIWorkTask>(OwnerTask);
+	const UCommonAITaskAdapter* Work = Cast<UCommonAITaskAdapter>(OwnerTask);
 	UCommonAIAgentComponent* Agent = Work ? Work->GetAgent() : nullptr;
 	if (Agent && Agent->GetMovementAdapter() && IsValid(Target) && (!bHasGuardObject || GuardObject.IsValid()))
 	{
+		if (!IsValid(Agent->GetMovementAdapter())) { CompleteMove(false); return; }
 		MovementAdapter = Agent->GetMovementAdapter();
 		AdapterRequest = Work->GetRequest();
 		bUsingAdapter = true;
@@ -152,7 +135,7 @@ void UCommonAIMoveAction::OnMoveFinished(FAIRequestID FinishedRequest, const FPa
 	}
 }
 
-void UCommonAIMoveAction::ActionTick()
+void UCommonAIMoveAction::TickStep()
 {
 	if (bUsingAdapter)
 	{
@@ -191,59 +174,136 @@ void UCommonAIMoveAction::StopAction()
 void UCommonAIMoveAction::CompleteMove(bool bSucceeded)
 {
     if (!bSucceeded)
-        if (UCommonAIWorkTask* Task = Cast<UCommonAIWorkTask>(OwnerTask))
+        if (UCommonAITaskAdapter* Task = Cast<UCommonAITaskAdapter>(OwnerTask))
             Task->SetFailureReason(MoveTarget.IsValid() ? CommonAITags::Reason_MovementFailed : CommonAITags::Reason_TargetLost);
     CompleteStep(bSucceeded);
 }
-UCommonAIWorkTask::UCommonAIWorkTask(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
+UCommonAITaskAdapter::UCommonAITaskAdapter(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
-    Actions.Add(CreateDefaultSubobject<UCommonAIFindWorkAction>(TEXT("FindWork")));
-    Actions.Add(CreateDefaultSubobject<UCommonAIReserveWorkAction>(TEXT("ReserveWork")));
-    Actions.Add(CreateDefaultSubobject<UCommonAIMoveAction>(TEXT("MoveToWork")));
-    Actions.Add(CreateDefaultSubobject<UCommonAIPerformWorkAction>(TEXT("PerformWork")));
-    Actions.Add(CreateDefaultSubobject<UCommonAIReleaseWorkAction>(TEXT("ReleaseWork")));
-    TaskTag = CommonAITags::Activity_Work;
-    Considerations.AddTag(CommonAITags::Consideration_WorkAvailable);
     bInterruptible = false;
-    bEnableTick = true;
+    bEnableTick = false;
     TickInterval = TargetValidationIntervalSeconds;
     MaxMomentum = 0;
 }
 
-void UCommonAIWorkTask::Configure(const UCommonAIProfile* Profile)
+void UCommonAITaskAdapter::Configure(const FCommonAITaskDefinition& InDefinition, bool bInFallback)
 {
-    TaskTag = Profile->WorkActivity;
-    ScoreModifier = Profile->WorkScoreModifier;
-    TickInterval = Profile->ObservationIntervalSeconds;
-    for (UAthenaAIAction* Action : Actions)
-        if (UCommonAIMoveAction* Move = Cast<UCommonAIMoveAction>(Action))
-            Move->SetAcceptanceRadius(Profile->AcceptanceRadiusCentimeters);
+    Definition = InDefinition;
+    bFallback = bInFallback;
+    TaskTag = Definition.Activity;
+    Priority = static_cast<int8>(Definition.Priority);
+    ScoreModifier = Definition.ScoreModifier;
+    ReplaceResistance = Definition.ReplaceResistance;
+    TickInterval = Definition.TickIntervalSeconds;
+    UnlockTaskTime = Definition.UnlockDelaySeconds;
+    MaxMomentum = static_cast<uint8>(Definition.MaxMomentum);
+    MomentumScoreReduction = static_cast<uint8>(Definition.MomentumReductionPercent);
+    MomentumDecreaseTime = Definition.MomentumDecaySeconds;
+    Considerations.Reset();
+    if (!bFallback && !Definition.bCommandOnly)
+        for (const FCommonAICurveBinding& Binding : Definition.Considerations) Considerations.AddTag(Binding.Consideration);
+    Actions.Reset();
+    TArray<FCommonAIActionDefinition> Entries = Definition.Actions;
+    if (Definition.Kind != ECommonAITaskKind::Sequence)
+    {
+        FCommonAIActionDefinition Entry;
+        Entry.Id = Definition.Kind == ECommonAITaskKind::Wait ? CommonAITags::Action_Wait
+            : Definition.Kind == ECommonAITaskKind::BehaviorTree ? CommonAITags::Action_BehaviorTree : CommonAITags::Action_Execute;
+        Entry.Kind = ECommonAIActionKind::Custom;
+        Entry.TickIntervalSeconds = Definition.TickIntervalSeconds;
+        if (Definition.Kind == ECommonAITaskKind::Wait)
+        {
+            Entry.Kind = ECommonAIActionKind::Wait;
+            Entry.DurationSeconds = Definition.WaitDurationSeconds;
+        }
+        else if (Definition.Kind == ECommonAITaskKind::BehaviorTree)
+        {
+            UCommonAIBehaviorTreeExecution* Tree = NewObject<UCommonAIBehaviorTreeExecution>(this);
+            Tree->Tree = Definition.BehaviorTree;
+            Entry.Execution = Tree;
+        }
+        else Entry.Execution = Definition.Execution;
+        Entries = { Entry };
+    }
+    for (const FCommonAIActionDefinition& Entry : Entries)
+    {
+        UCommonAIAction* Action = nullptr;
+        switch (Entry.Kind)
+        {
+        case ECommonAIActionKind::FindOpportunity: Action = NewObject<UCommonAIFindWorkAction>(this); break;
+        case ECommonAIActionKind::Reserve: Action = NewObject<UCommonAIReserveWorkAction>(this); break;
+        case ECommonAIActionKind::Move:
+        {
+            UCommonAIMoveAction* Move = NewObject<UCommonAIMoveAction>(this);
+            Move->SetAcceptanceRadius(Entry.AcceptanceRadiusCentimeters);
+            Action = Move;
+            break;
+        }
+        case ECommonAIActionKind::Interact: Action = NewObject<UCommonAIPerformWorkAction>(this); break;
+        case ECommonAIActionKind::Release: Action = NewObject<UCommonAIReleaseWorkAction>(this); break;
+        default:
+        {
+            UCommonAIConfiguredAction* Configured = NewObject<UCommonAIConfiguredAction>(this);
+            Configured->Configure(Entry, Entry.TickIntervalSeconds);
+            Action = Configured;
+            break;
+        }
+        }
+        Action->SetActionIdentity(Entry.Id);
+        Action->SetTickCadence(Entry.TickIntervalSeconds);
+        Actions.Add(Action);
+    }
 }
 
-void UCommonAIWorkTask::Start(UAthenaAIDataManager* DataManager, AAIController* Controller)
+UCommonAIAction* UCommonAITaskAdapter::CurrentCommonAction() const
 {
-    // The backend never starts another run until this run has reached its safe terminal point.
+    return Actions.IsValidIndex(CurrentActionIndex) ? Cast<UCommonAIAction>(Actions[CurrentActionIndex]) : nullptr;
+}
+
+FCommonAIExecutionContext UCommonAITaskAdapter::MakeExecutionContext(FGameplayTag Action, FGuid Entry) const
+{
+    FCommonAIExecutionContext Context;
+    Context.Agent = Agent.Get();
+    Context.Request = Request;
+    Context.Pawn = Request.Pawn;
+    Context.Target = Site;
+    Context.Action = Action;
+    Context.Entry = Entry;
+    Context.Invocation = FGuid::NewGuid();
+    return Context;
+}
+
+void UCommonAITaskAdapter::Start(UAthenaAIDataManager* DataManager, AAIController* Controller)
+{
     if (bRunning) return;
+    UCommonAIBackend* Backend = CastChecked<UCommonAIBackend>(OwnerAthenaAIComp);
+    TGuardValue<bool> Guard(Backend->bInCallback, true);
     bRunning = true;
-    bHasReservation = bPerformed = bReleased = bSequenceFinished = bCancelling = bInteractionStarted = false;
+    bHasReservation = bSequenceFinished = bCancelling = false;
     EndReason = {};
     Site.Reset();
     RunController = Controller;
     Agent = Controller ? Controller->FindComponentByClass<UCommonAIAgentComponent>() : nullptr;
     Provider = Agent.IsValid() ? Agent->GetProvider() : nullptr;
     Request.Execution = FGuid::NewGuid();
+    Request.Operation.Invalidate();
+    Request.Generation = Agent.IsValid() ? Agent->GetInputGeneration() : FGuid();
     Request.Agent = Controller;
+    Request.Pawn = Controller ? Controller->GetPawn() : nullptr;
     Request.Activity = TaskTag;
+    Request.Payload = Backend->GetStartPayload(TaskTag);
     if (Agent.IsValid())
     {
-        BusyContribution = Agent->AddTagContribution(this, FGameplayTagContainer(CommonAITags::State_Busy_Working));
-        Agent->SetExecutionSnapshot(ECommonAIPhase::Approaching, Request, nullptr);
+        BusyContribution = Agent->AddTagContribution(this, Definition.ActiveStateTags);
+        Agent->QueueActivityStarted(Request);
+        Agent->SetExecutionSnapshot(bFallback ? ECommonAIPhase::Idle : ECommonAIPhase::Executing, Request, nullptr);
     }
     Super::Start(DataManager, Controller);
 }
 
-void UCommonAIWorkTask::SetSite(UObject* NewSite)
+bool UCommonAITaskAdapter::SetSite(UObject* NewSite)
 {
+    if (bHasReservation || !IsValid(NewSite) || !NewSite->GetClass()->ImplementsInterface(UCommonAIInteraction::StaticClass())) return false;
     Site = NewSite;
     const FCommonAIInteractionOffer Offer = IsValid(NewSite)
         ? ICommonAIInteraction::Execute_QueryInteraction(NewSite, Request) : FCommonAIInteractionOffer{};
@@ -254,48 +314,69 @@ void UCommonAIWorkTask::SetSite(UObject* NewSite)
             Move->SetGuardObject(NewSite);
         }
     if (Agent.IsValid()) Agent->SetExecutionSnapshot(ECommonAIPhase::Approaching, Request, NewSite);
+    return true;
 }
 
-void UCommonAIWorkTask::RequestCancellation(FGameplayTag Reason)
+void UCommonAITaskAdapter::MarkReserved()
+{
+    bHasReservation = true;
+    if (Agent.IsValid()) Agent->SetExecutionSnapshot(bCancelling ? ECommonAIPhase::Cancelling : ECommonAIPhase::Approaching, Request, Site.Get(), EndReason);
+    if (bCancelling && Site.IsValid())
+        ICommonAIInteraction::Execute_RequestInteractionCancellation(Site.Get(), Request, EndReason);
+}
+
+void UCommonAITaskAdapter::RequestCancellation(FGameplayTag Reason)
 {
     if (!bRunning || bCancelling) return;
     bCancelling = true;
     EndReason = Reason;
-    for (UAthenaAIAction* Action : Actions)
-        if (UCommonAIMoveAction* Move = Cast<UCommonAIMoveAction>(Action)) Move->StopAction();
     if (Agent.IsValid()) Agent->SetExecutionSnapshot(ECommonAIPhase::Cancelling, Request, Site.Get(), Reason);
+    if (UCommonAIAction* Action = CurrentCommonAction()) Action->RequestSafeCancellation(Reason);
     if (bHasReservation && Site.IsValid())
         ICommonAIInteraction::Execute_RequestInteractionCancellation(Site.Get(), Request, Reason);
-    // Do not stop from inside a scoring callback. The next task tick drains or waits.
 }
 
-void UCommonAIWorkTask::TaskTick()
+bool UCommonAITaskAdapter::TryFinishCancellation()
+{
+    if (!bRunning || !bCancelling) return false;
+    if (const UCommonAIAction* Action = CurrentCommonAction())
+        if (!Action->HasReachedSafeEnd()) return false;
+    FCommonAIInteractionResult TargetResult;
+    if (bHasReservation && Site.IsValid())
+    {
+        TargetResult = ICommonAIInteraction::Execute_GetInteractionResult(Site.Get(), Request);
+        if (!TargetResult.IsTerminal()) return false;
+    }
+    const bool bTargetFailed = bHasReservation && (!Site.IsValid() || TargetResult.Status == ECommonAIInteractionStatus::Failed
+            || TargetResult.Status == ECommonAIInteractionStatus::Rejected);
+    const UCommonAIExecution* Active = GetActiveExecution();
+    const bool bStepFailed = Active && (Active->GetResult().Status == ECommonAIInteractionStatus::Failed
+        || Active->GetResult().Status == ECommonAIInteractionStatus::Rejected);
+    const bool bFailed = bTargetFailed || bStepFailed;
+    if (bTargetFailed) EndReason = Site.IsValid() ? TargetResult.Reason : CommonAITags::Reason_TargetLost;
+    else if (bStepFailed) EndReason = Active->GetResult().Reason.IsValid() ? Active->GetResult().Reason : CommonAITags::Reason_InteractionFailed;
+    Stop(OwnerAthenaAIComp->GetDataManager(), RunController.Get(), bFailed ? EAAITaskResult::Aborted : EAAITaskResult::Replaced);
+    return true;
+}
+
+void UCommonAITaskAdapter::TaskTick()
 {
     if (!bRunning) return;
-    if (bCancelling)
-    {
-        FCommonAIInteractionResult Current;
-        if (bHasReservation && Site.IsValid())
-            Current = ICommonAIInteraction::Execute_GetInteractionResult(Site.Get(), Request);
-        if (!bHasReservation || !Site.IsValid() || Current.IsTerminal())
-        {
-            const bool bFailed = bHasReservation && (!Site.IsValid()
-                || Current.Status == ECommonAIInteractionStatus::Failed || Current.Status == ECommonAIInteractionStatus::Rejected);
-            if (bFailed) EndReason = Site.IsValid() ? Current.Reason : CommonAITags::Reason_TargetLost;
-            Stop(OwnerAthenaAIComp->GetDataManager(), RunController.Get(),
-                bFailed ? EAAITaskResult::Aborted : EAAITaskResult::Successful);
-        }
-    }
+    UCommonAIBackend* Backend = CastChecked<UCommonAIBackend>(OwnerAthenaAIComp);
+    TGuardValue<bool> Guard(Backend->bInCallback, true);
+    if (bCancelling) { TryFinishCancellation(); return; }
     Super::TaskTick();
 }
 
-void UCommonAIWorkTask::Stop(UAthenaAIDataManager* DataManager, AAIController* Controller, EAAITaskResult Result)
+void UCommonAITaskAdapter::Stop(UAthenaAIDataManager* DataManager, AAIController* Controller, EAAITaskResult Result)
 {
     if (!bRunning) return;
+    UCommonAIBackend* Backend = CastChecked<UCommonAIBackend>(OwnerAthenaAIComp);
+    TGuardValue<bool> Guard(Backend->bInCallback, true);
     bRunning = false;
     FCommonAIInteractionResult Outcome;
-    Outcome.Status = Result == EAAITaskResult::Successful && bCancelling ? ECommonAIInteractionStatus::Cancelled
-        : Result == EAAITaskResult::Successful && bPerformed && bReleased && bSequenceFinished
+    Outcome.Status = bCancelling && Result == EAAITaskResult::Replaced ? ECommonAIInteractionStatus::Cancelled
+        : Result == EAAITaskResult::Successful && bSequenceFinished
         ? ECommonAIInteractionStatus::Completed : ECommonAIInteractionStatus::Failed;
     Outcome.Reason = EndReason;
     if (bHasReservation && Site.IsValid())
@@ -306,44 +387,170 @@ void UCommonAIWorkTask::Stop(UAthenaAIDataManager* DataManager, AAIController* C
     }
     Site.Reset();
     bHasReservation = false;
-    if (Agent.IsValid())
-    {
-        Agent->RemoveTagContribution(this, BusyContribution);
-        Agent->RecordExecutionResult(Outcome);
-    }
-    Super::Stop(DataManager, Controller, Result);
+    if (Agent.IsValid()) Agent->RemoveTagContribution(this, BusyContribution);
+    const EAAITaskResult VendorResult = Outcome.Status == ECommonAIInteractionStatus::Completed ? EAAITaskResult::Successful
+        : Outcome.Status == ECommonAIInteractionStatus::Cancelled ? EAAITaskResult::Replaced
+        : Result == EAAITaskResult::Failed ? EAAITaskResult::Failed : EAAITaskResult::Aborted;
+    Super::Stop(DataManager, Controller, VendorResult);
+    if (Agent.IsValid()) Agent->RecordExecutionResult(Request, Outcome);
+    Backend->OnExecutionEnded(Request.Execution, Outcome);
+    Request.Payload.Reset();
 }
 
-void UCommonAIWorkTask::FinishTask()
+void UCommonAITaskAdapter::FinishTask()
 {
-    bSequenceFinished = bPerformed && bReleased;
+    bSequenceFinished = !bHasReservation;
     Super::FinishTask();
 }
 
-void UCommonAIWorkTask::Cleanup()
+void UCommonAITaskAdapter::Cleanup()
 {
-    if (bRunning) Stop(OwnerAthenaAIComp->GetDataManager(), RunController.Get(), EAAITaskResult::Aborted);
+    if (bRunning) Stop(OwnerAthenaAIComp->GetDataManager(), RunController.Get(), EAAITaskResult::Failed);
     Super::Cleanup();
 }
 
+bool UCommonAITaskAdapter::SignalExecutionComplete(FGuid Invocation, ECommonAIInteractionStatus Status, FGameplayTag Reason)
+{
+    if (UCommonAIConfiguredAction* Action = Cast<UCommonAIConfiguredAction>(CurrentCommonAction()))
+        return Action->SignalComplete(Invocation, Status, Reason);
+    return false;
+}
+
+UCommonAIExecution* UCommonAITaskAdapter::GetActiveExecution() const
+{
+    const UCommonAIConfiguredAction* Action = Cast<UCommonAIConfiguredAction>(CurrentCommonAction());
+    return Action ? Action->GetExecution() : nullptr;
+}
+
+void UCommonAIConfiguredAction::Configure(const FCommonAIActionDefinition& InDefinition, float IntervalSeconds)
+{
+    Definition = InDefinition;
+    ActionTag = Definition.Id;
+    TickInterval = IntervalSeconds;
+    if (Definition.Kind == ECommonAIActionKind::Wait)
+    {
+        UCommonAIWaitExecution* Wait = NewObject<UCommonAIWaitExecution>(this);
+        Wait->DurationSeconds = Definition.DurationSeconds;
+        Execution = Wait;
+    }
+    else if (Definition.Execution) Execution = DuplicateObject<UCommonAIExecution>(Definition.Execution, this);
+    bEnableTick = Execution && Execution->RequiresTick();
+}
+
+void UCommonAIConfiguredAction::ExecuteStep(AAIController* Controller)
+{
+    UCommonAITaskAdapter* Task = CastChecked<UCommonAITaskAdapter>(OwnerTask);
+    if (Definition.Kind == ECommonAIActionKind::ResolveBinding)
+    {
+        UObject* Target = Task->GetAgent() ? Task->GetAgent()->GetExecutionBinding(Definition.BindingId) : nullptr;
+        CompleteStep(Target && Task->SetSite(Target));
+        return;
+    }
+    LastTickTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+    const FCommonAIExecutionContext Context = Task->MakeExecutionContext(Definition.Id, Definition.EntryId);
+    if (Task->GetAgent()) Task->GetAgent()->SetCurrentAction(Definition.Id, Context.Invocation);
+    if (Execution) CompletionHandle = Execution->OnFinished.AddUObject(this, &UCommonAIConfiguredAction::HandleFinished);
+    if (!Execution || !Execution->BeginExecution(Context))
+    {
+        CompleteStep(false);
+        return;
+    }
+}
+
+void UCommonAIConfiguredAction::TickStep()
+{
+    if (!Execution) { CompleteStep(false); return; }
+    const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : LastTickTime;
+    Execution->TickExecution(static_cast<float>(FMath::Max(0.0, Now - LastTickTime)));
+    LastTickTime = Now;
+}
+
+void UCommonAIConfiguredAction::HandleFinished(FGuid Invocation, const FCommonAIInteractionResult& Outcome)
+{
+    if (!Execution || Invocation != Execution->GetContext().Invocation) return;
+    UCommonAIBackend* Backend = CastChecked<UCommonAIBackend>(OwnerTask->GetOwnerAthenaAIComp());
+    TGuardValue<bool> Guard(Backend->bInCallback, true);
+    if (Outcome.IsTerminal())
+    {
+        if (Outcome.Status == ECommonAIInteractionStatus::Cancelled)
+        {
+            if (UCommonAITaskAdapter* Task = Cast<UCommonAITaskAdapter>(OwnerTask)) Task->RequestCancellation(Outcome.Reason);
+            return;
+        }
+        if (UCommonAITaskAdapter* Task = Cast<UCommonAITaskAdapter>(OwnerTask))
+            if (Outcome.Status != ECommonAIInteractionStatus::Completed) Task->SetFailureReason(Outcome.Reason);
+        CompleteStep(Outcome.Status == ECommonAIInteractionStatus::Completed);
+    }
+}
+
+void UCommonAIConfiguredAction::RequestSafeCancellation(FGameplayTag Reason)
+{
+    if (Execution) Execution->CancelExecution(Reason);
+}
+
+bool UCommonAIConfiguredAction::HasReachedSafeEnd() const
+{
+    return !Execution || Execution->GetResult().IsTerminal();
+}
+
+bool UCommonAIConfiguredAction::SignalComplete(FGuid Invocation, ECommonAIInteractionStatus Status, FGameplayTag Reason)
+{
+    return Execution && Execution->CompleteExecution(Invocation, Status, Reason);
+}
+
+void UCommonAIConfiguredAction::StopAction()
+{
+    if (Execution)
+    {
+        Execution->OnFinished.Remove(CompletionHandle);
+        Execution->AbandonExecution(CommonAITags::Reason_Disabled);
+        Execution->ReleaseContext();
+    }
+    Super::StopAction();
+}
 void UCommonAIFindWorkAction::ExecuteStep(AAIController* Controller)
 {
-    UCommonAIWorkTask* Task = Cast<UCommonAIWorkTask>(OwnerTask);
+    UCommonAITaskAdapter* Task = Cast<UCommonAITaskAdapter>(OwnerTask);
     const UCommonAIAgentComponent* Agent = Task ? Task->GetAgent() : nullptr;
     UObject* Target = Task && Task->GetProvider() && Agent && Agent->Profile
-        ? Task->GetProvider()->FindOpportunity(Task->GetRequest(), Agent->Profile->RequiredTargetCapabilities) : nullptr;
-    if (Target) Task->SetSite(Target);
-    else if (Task) Task->SetFailureReason(CommonAITags::Reason_NoOpportunity);
-    CompleteStep(Target != nullptr);
+        ? Task->GetProvider()->FindOpportunity(Task->GetRequest(), Task->GetDefinition().RequiredTargetCapabilities) : nullptr;
+    const bool bSelected = Target && Task->SetSite(Target);
+    if (!bSelected && Task) Task->SetFailureReason(CommonAITags::Reason_NoOpportunity);
+    CompleteStep(bSelected);
 }
 
 void UCommonAIReserveWorkAction::ExecuteStep(AAIController* Controller)
 {
-    UCommonAIWorkTask* Task = Cast<UCommonAIWorkTask>(OwnerTask);
-    const bool bReserved = Task && IsValid(Task->GetSite()) && !Task->IsCancelling()
-        && ICommonAIInteraction::Execute_ReserveInteraction(Task->GetSite(), Task->GetRequest());
-    if (bReserved) Task->MarkReserved();
-    else if (Task) Task->SetFailureReason(CommonAITags::Reason_ReservationFailed);
+    UCommonAITaskAdapter* Task = Cast<UCommonAITaskAdapter>(OwnerTask);
+    TSet<UObject*> AttemptedTargets;
+    UObject* Candidate = Task ? Task->GetSite() : nullptr;
+    const UCommonAIWorkProviderComponent* InitialProvider = Task ? Task->GetProvider() : nullptr;
+    // Capture the bound before invoking authored callbacks, which may grow the provider's target list.
+    const int32 MaximumAttempts = 1 + (InitialProvider ? InitialProvider->GetCandidateCount(Task->GetRequest().Activity) : 0);
+    bool bReserved = false;
+    while (Task && Task->IsRunning() && !Task->IsCancelling() && AttemptedTargets.Num() < MaximumAttempts)
+    {
+        if (!IsValid(Candidate))
+        {
+            UCommonAIWorkProviderComponent* Provider = Task->GetProvider();
+            Candidate = Provider ? Provider->FindOpportunity(Task->GetRequest(),
+                Task->GetDefinition().RequiredTargetCapabilities, &AttemptedTargets) : nullptr;
+            if (!IsValid(Candidate) || AttemptedTargets.Contains(Candidate) || !Task->IsRunning()
+                || Task->IsCancelling() || !Task->SetSite(Candidate)) break;
+        }
+        if (AttemptedTargets.Contains(Candidate) || !Task->IsRunning() || Task->IsCancelling()
+            || !Task->PrepareReservation()) break;
+        AttemptedTargets.Add(Candidate);
+        bReserved = ICommonAIInteraction::Execute_ReserveInteraction(Candidate, Task->GetRequest());
+        if (bReserved)
+        {
+            // A successful reserve can synchronously request cancellation; retain ownership so normal cleanup releases it.
+            Task->MarkReserved();
+            break;
+        }
+        Candidate = nullptr;
+    }
+    if (!bReserved && Task && !Task->IsCancelling()) Task->SetFailureReason(CommonAITags::Reason_ReservationFailed);
     CompleteStep(bReserved);
 }
 
@@ -355,10 +562,10 @@ UCommonAIPerformWorkAction::UCommonAIPerformWorkAction()
 
 void UCommonAIPerformWorkAction::ExecuteStep(AAIController* Controller)
 {
-    UCommonAIWorkTask* Task = Cast<UCommonAIWorkTask>(OwnerTask);
+    UCommonAITaskAdapter* Task = Cast<UCommonAITaskAdapter>(OwnerTask);
     if (!Task || !IsValid(Task->GetSite())) { CompleteStep(false); return; }
     if (Task->IsCancelling()) return;
-    Task->SetInteractionStarted();
+
     if (UCommonAIAgentComponent* Agent = Task->GetAgent())
         Agent->SetExecutionSnapshot(ECommonAIPhase::Interacting, Task->GetRequest(), Task->GetSite());
     const FCommonAIInteractionResult Started = ICommonAIInteraction::Execute_BeginInteraction(Task->GetSite(), Task->GetRequest());
@@ -371,9 +578,9 @@ void UCommonAIPerformWorkAction::ExecuteStep(AAIController* Controller)
     ActionTick();
 }
 
-void UCommonAIPerformWorkAction::ActionTick()
+void UCommonAIPerformWorkAction::TickStep()
 {
-    UCommonAIWorkTask* Task = Cast<UCommonAIWorkTask>(OwnerTask);
+    UCommonAITaskAdapter* Task = Cast<UCommonAITaskAdapter>(OwnerTask);
     if (!Task || !IsValid(Task->GetSite()))
     {
         if (Task) Task->SetFailureReason(CommonAITags::Reason_TargetLost);
@@ -385,21 +592,23 @@ void UCommonAIPerformWorkAction::ActionTick()
     if (Result.IsTerminal())
     {
         const bool bSucceeded = Result.Status == ECommonAIInteractionStatus::Completed;
-        if (bSucceeded) Task->MarkPerformed();
-        else Task->SetFailureReason(Result.Reason);
+        if (!bSucceeded) Task->SetFailureReason(Result.Reason);
         CompleteStep(bSucceeded);
     }
 }
 
 void UCommonAIReleaseWorkAction::ExecuteStep(AAIController* Controller)
 {
-    UCommonAIWorkTask* Task = Cast<UCommonAIWorkTask>(OwnerTask);
-    const bool bCanRelease = Task && IsValid(Task->GetSite());
-    if (bCanRelease)
-    {
-        ICommonAIInteraction::Execute_ReleaseInteraction(Task->GetSite(), Task->GetRequest(), false);
-        Task->MarkReleased();
-    }
-    CompleteStep(bCanRelease);
+    UCommonAITaskAdapter* Task = Cast<UCommonAITaskAdapter>(OwnerTask);
+    const bool bReleased = Task && IsValid(Task->GetSite())
+        && ICommonAIInteraction::Execute_ReleaseInteraction(Task->GetSite(), Task->GetRequest(), false);
+    if (bReleased) Task->MarkReleased();
+    else if (Task) Task->SetFailureReason(CommonAITags::Reason_ReservationFailed);
+    CompleteStep(bReleased);
 }
+
+
+
+
+
 

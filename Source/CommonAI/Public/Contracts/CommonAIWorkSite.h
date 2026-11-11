@@ -20,12 +20,12 @@ public:
     virtual FCommonAIInteractionResult BeginInteraction_Implementation(const FCommonAIInteractionRequest& Request) override;
     virtual void RequestInteractionCancellation_Implementation(const FCommonAIInteractionRequest& Request, FGameplayTag Reason) override;
     virtual FCommonAIInteractionResult GetInteractionResult_Implementation(const FCommonAIInteractionRequest& Request) const override;
-    virtual void ReleaseInteraction_Implementation(const FCommonAIInteractionRequest& Request, bool bEmergencyTeardown) override;
+    virtual bool ReleaseInteraction_Implementation(const FCommonAIInteractionRequest& Request, bool bEmergencyTeardown) override;
 
     UFUNCTION(BlueprintCallable, Category = "Common AI|Interaction")
-    void SignalCompletion(FGuid Execution, bool bSucceeded);
+    void SignalCompletion(const FCommonAIInteractionRequest& Request, bool bSucceeded);
     UFUNCTION(BlueprintCallable, Category = "Common AI|Interaction")
-    void SignalSafeCancellation(FGuid Execution);
+    void SignalSafeCancellation(const FCommonAIInteractionRequest& Request);
     UPROPERTY(BlueprintAssignable, Category = "Common AI|Interaction") FCommonAIInteractionStarted OnInteractionStarted;
     UPROPERTY(BlueprintAssignable, Category = "Common AI|Interaction") FCommonAIInteractionCancelRequested OnCancellationRequested;
     // Emergency teardown cannot wait for animation; effect owners must detach their pending work.
@@ -42,9 +42,7 @@ protected:
     void AbandonCurrentExecution();
     bool Owns(const FCommonAIInteractionRequest& Request) const;
     FCommonAIInteractionResult Result;
-    FGuid Execution;
-    TWeakObjectPtr<AAIController> ReservationOwner;
-    FGameplayTag ReservedActivity;
+    UPROPERTY(Transient) FCommonAIInteractionRequest Reservation;
     bool bTearingDown = false;
 };
 

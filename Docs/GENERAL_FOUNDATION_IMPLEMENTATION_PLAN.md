@@ -8,7 +8,7 @@
 
 **Tech Stack:** Unreal Engine 5.8, AthenaAI 2.6, C++, Gameplay Tags, native asset authoring; initial verification on Win64.
 
-**Spec:** `GENERAL_FOUNDATION_DESIGN.md` in this directory. Status: design/planning only; no new runtime implementation is claimed.
+**Spec:** `GENERAL_FOUNDATION_DESIGN.md` in this directory. Implementation, focused regression and independent packaged acceptance are complete through M7 within the final minimal-validation scope. The original checklist below records planned obligations; `STATUS.md` is the current evidence ledger, including M7 acceptance and limits. Do not interpret individual unchecked planning bullets as fresh implementation requests or claim untested combinations from a milestone label.
 
 ## Global constraints
 

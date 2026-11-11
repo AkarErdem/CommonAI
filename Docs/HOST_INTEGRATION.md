@@ -4,6 +4,8 @@
 
 The host is the explicitly authorized current Unreal project. CommonAI normally lives at `Plugins/CommonAI` and may have its own Git repository. This document defines a safe setup workflow; it does not grant access to an unrelated project or replace that project's instructions.
 
+For runtime installation and the first role in the Unreal Editor, follow [Set up your first NPC role](../README.md#set-up-your-first-npc-role). The managed bridge below is for projects that use agent instructions.
+
 ## Install or refresh the bridge
 
 For an explicitly authorized host instruction setup, use this workflow. This document does not itself authorize an edit:

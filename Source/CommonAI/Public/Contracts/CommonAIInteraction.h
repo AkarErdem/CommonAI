@@ -3,9 +3,11 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "UObject/Interface.h"
+#include "StructUtils/InstancedStruct.h"
 #include "CommonAIInteraction.generated.h"
 
 class AAIController;
+class APawn;
 
 UENUM(BlueprintType)
 enum class ECommonAIInteractionStatus : uint8
@@ -18,8 +20,12 @@ struct COMMONAI_API FCommonAIInteractionRequest
 {
     GENERATED_BODY()
     UPROPERTY(BlueprintReadOnly, Category = "Common AI") FGuid Execution;
+    UPROPERTY(BlueprintReadOnly, Category = "Common AI") FGuid Operation;
+    UPROPERTY(BlueprintReadOnly, Category = "Common AI") FGuid Generation;
     UPROPERTY(BlueprintReadOnly, Category = "Common AI") TObjectPtr<AAIController> Agent = nullptr;
+    UPROPERTY(BlueprintReadOnly, Category = "Common AI") TWeakObjectPtr<APawn> Pawn;
     UPROPERTY(BlueprintReadOnly, Category = "Common AI") FGameplayTag Activity;
+    UPROPERTY(BlueprintReadOnly, Category = "Common AI") FInstancedStruct Payload;
 };
 
 USTRUCT(BlueprintType)
@@ -66,5 +72,5 @@ public:
     UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Common AI|Interaction")
     FCommonAIInteractionResult GetInteractionResult(const FCommonAIInteractionRequest& Request) const;
     UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Common AI|Interaction")
-    void ReleaseInteraction(const FCommonAIInteractionRequest& Request, bool bEmergencyTeardown = false);
+    bool ReleaseInteraction(const FCommonAIInteractionRequest& Request, bool bEmergencyTeardown = false);
 };
